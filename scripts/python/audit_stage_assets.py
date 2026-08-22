@@ -10,11 +10,11 @@ import os
 
 
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 PROJECTS = os.path.join(ROOT, "projects")
 
-REPORT_PATH = os.path.join(ROOT, "stage", "public", "models", "audit-report.json")
+REPORT_PATH = os.path.join(ROOT, "public", "models", "audit-report.json")
 
 
 

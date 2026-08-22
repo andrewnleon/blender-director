@@ -690,7 +690,7 @@ def setup(save_path: str | None = None) -> dict[str, int]:
     import importlib
     import sys
 
-    root = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     if root not in sys.path:
         sys.path.insert(0, root)
 
@@ -713,6 +713,6 @@ def setup(save_path: str | None = None) -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    root = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     blend_path = os.path.join(root, "projects", "skyscraper", "skyscraper.blend")
     setup(blend_path)

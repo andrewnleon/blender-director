@@ -12,9 +12,9 @@ import struct
 
 
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-MODELS = os.path.join(ROOT, "stage", "public", "models")
+MODELS = os.path.join(ROOT, "public", "models")
 
 REPORT = os.path.join(MODELS, "verification-report.json")
 

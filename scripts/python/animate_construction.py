@@ -725,7 +725,12 @@ def setup():
     animate_groups(groups)
     mark_timeline()
     set_scene()
-    workshop_path = os.path.join(os.path.dirname(__file__), "projects", "workshop", "workshop.blend")
+    workshop_path = os.path.join(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")),
+        "projects",
+        "workshop",
+        "workshop.blend",
+    )
     os.makedirs(os.path.dirname(workshop_path), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=workshop_path)
     print("CONSTRUCTION ANIM READY", bpy.context.scene.frame_start, bpy.context.scene.frame_end)

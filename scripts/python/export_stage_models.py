@@ -1,4 +1,4 @@
-"""Export hero skyscraper blend to stage/public/models/skyscraper.glb."""
+"""Export hero skyscraper blend to public/models/skyscraper.glb."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import os
 
 
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 PROJECTS = os.path.join(ROOT, "projects")
 
-OUT_DIR = os.path.join(ROOT, "stage", "public", "models")
+OUT_DIR = os.path.join(ROOT, "public", "models")
 
 
 
