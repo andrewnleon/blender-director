@@ -1,11 +1,10 @@
 """Rewrite skyscraper.glb so the clip reads as an RC frame stack.
 
 Hidden Blender objects bake to origin in glTF. This patch does not need Blender:
-it keeps rest height from the last key and C&C-grows members in place
+it keeps rest height from the last key and Lego-snaps members in place
 (footings → columns/beams → slab → next floor). No sky drop.
 
-Also shrinks curtain/window/deck scale during the frame stack so the hero is
-columns + beams + colored slabs, not a glass pile at the origin.
+Timing + crane plateaus come from construction_schedule.py (single source of truth).
 """
 from __future__ import annotations
 
@@ -16,34 +15,37 @@ import struct
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SCRIPTS = os.path.dirname(os.path.abspath(__file__))
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)
+
+import construction_schedule as sched
+
 GLB_PATH = os.path.join(ROOT, "public", "models", "skyscraper.glb")
 
-GROW_DUR = 0.55
+GROW_DUR = sched.GROW_DUR
 GROW_START_SCALE = 0.04
-FOUNDATION_END = 4.2
-FOOTINGS_END = 5.2
-STACK_T0 = 6.0
-FLOOR_SPAN = 2.55
-WALL_GAP = 0.35
-WALL_SPAN = 0.50
-WINDOW_GAP = 0.25
-WINDOW_SPAN = 0.35
-FLOOR_COUNT = 12
+FOUNDATION_END = sched.FOUNDATION_END
+FOOTINGS_END = sched.FOOTINGS_END
+STACK_T0 = sched.STACK_T0
+CRANE_LIFT_T0 = sched.CRANE_LIFT_T0
+FLOOR_SPAN = sched.FLOOR_SPAN
+WALL_GAP = sched.WALL_GAP
+WALL_SPAN = sched.WALL_SPAN
+WINDOW_GAP = sched.WINDOW_GAP
+WINDOW_SPAN = sched.WINDOW_SPAN
+FLOOR_COUNT = sched.FLOORS
+LOWER_SPAN = sched.LOWER_SPAN
+MAST_GROW = sched.MAST_GROW
 
 JSON_CHUNK = 0x4E4F534A
 BIN_CHUNK = 0x004E4942
 
-WALL_ROLES = {"panel", "rib"}
-WINDOW_ROLES = {"window"}
-SKIN_ROLES = WALL_ROLES | WINDOW_ROLES
-STRUCTURAL_ROLES = {"foundation", "footing", "column", "core", "frame", "deck", "slab", "roof"}
-ROLE_OFFSET = {
-    "column": 0.00,
-    "core": 0.20,
-    "frame": 0.60,
-    "deck": 0.90,
-    "slab": 1.30,
-}
+WALL_ROLES = sched.WALL_ROLES
+WINDOW_ROLES = sched.WINDOW_ROLES
+SKIN_ROLES = sched.SKIN_ROLES
+STRUCTURAL_ROLES = sched.STRUCTURAL_ROLES
+ROLE_OFFSET = sched.ROLE_OFFSET
 
 
 def parse_floor_index(name: str) -> int | None:
@@ -75,40 +77,29 @@ def stack_role(name: str) -> str | None:
         return "panel"
     if name.startswith("ST_RibBand_"):
         return "rib"
-    if name.startswith("ST_Windows_F") or name.startswith("ST_N_Windows_F"):
+    if "Windows_F" in name:
         return "window"
     if name in {"ST_Roof", "ST_Parapet"}:
         return "roof"
-    if name.startswith("ST_HVAC") or name.startswith("ST_Vent") or name == "ST_Antenna":
+    if name.startswith("ST_HVAC") or name.startswith("ST_Vent") or name.startswith("ST_Sat") or name.startswith("ST_Antenna"):
         return "roof"
     return None
 
 
 def last_slab_end() -> float:
-    return STACK_T0 + (FLOOR_COUNT - 1) * FLOOR_SPAN + ROLE_OFFSET["slab"]
+    return sched.last_slab_end()
 
 
 def last_wall_end() -> float:
-    return last_slab_end() + WALL_GAP + FLOOR_COUNT * WALL_SPAN
+    return sched.last_wall_end()
 
 
 def last_window_end() -> float:
-    return last_wall_end() + WINDOW_GAP + FLOOR_COUNT * WINDOW_SPAN
+    return sched.last_window_end()
 
 
 def desired_drop_end(floor: int, role: str) -> float:
-    if role == "foundation":
-        return FOUNDATION_END
-    if role == "footing":
-        return FOOTINGS_END
-    if role == "roof":
-        return last_window_end() + 1.4
-    if role in WALL_ROLES:
-        return last_slab_end() + WALL_GAP + max(1, floor) * WALL_SPAN
-    if role in WINDOW_ROLES:
-        return last_wall_end() + WINDOW_GAP + max(1, floor) * WINDOW_SPAN
-    story = max(1, floor)
-    return STACK_T0 + (story - 1) * FLOOR_SPAN + ROLE_OFFSET[role]
+    return sched.role_complete_at(floor, role)
 
 
 def remap_times(times: list[float], desired_end: float) -> list[float]:
@@ -119,9 +110,8 @@ def remap_times(times: list[float], desired_end: float) -> list[float]:
     return [time * scale for time in times]
 
 
-# glTF Y-up: Blender SITE_CRANE (5.8, 5.0, 0.32). Stay parked; mast lowers.
-CRANE_PAD = (5.8, 0.32, -5.0)
-LOWER_SPAN = 2.2
+# glTF Y-up: Blender SITE_CRANE (7.2, 7.0, 0.32). Stay parked; mast lowers.
+CRANE_PAD = (7.2, 0.32, -7.0)
 
 
 def height_rises(
@@ -147,27 +137,61 @@ def height_rises(
     return rises
 
 
+def first_value_change(
+    times: list[float], values: array.array, components: int, epsilon: float = 1e-4
+) -> float | None:
+    if not times:
+        return None
+    first = values[:components]
+    for index in range(1, len(times)):
+        chunk = values[index * components : (index + 1) * components]
+        if any(abs(left - right) > epsilon for left, right in zip(first, chunk)):
+            return float(times[index])
+    return None
+
+
 def crane_time_anchors(
-    old_times: list[float], rises: list[tuple[float, float, float]]
+    old_times: list[float],
+    rises: list[tuple[float, float, float]],
+    first_motion: float | None = None,
 ) -> list[tuple[float, float]]:
-    """Hold short mast until floor 1, then one grow per restacked floor."""
-    roof_t = last_window_end() + 1.4
-    lower_t = roof_t + LOWER_SPAN
+    """Map crane motion onto floor-beat plateaus from BUILD_SCHEDULE."""
+    roof_t = sched.crane_plateau_for_rise(FLOOR_COUNT)
+    lower_t = sched.crane_lower_end()
     if not old_times:
         return [(0.0, 0.0)]
     anchors: list[tuple[float, float]] = [(old_times[0], 0.0)]
+    if first_motion is not None:
+        anchors.append((first_motion, CRANE_LIFT_T0))
     if not rises:
         anchors.append((old_times[-1], lower_t))
-        return anchors
-    anchors.append((rises[0][0], STACK_T0))
-    for index, (_start, end, _height) in enumerate(rises):
-        if index < FLOOR_COUNT - 1:
-            anchors.append((end, STACK_T0 + (index + 1) * FLOOR_SPAN))
+        return _dedupe_time_anchors(anchors)
+    for index, (start, end, _height) in enumerate(rises):
+        grow_start = sched.crane_raise_start_for_rise(index)
+        plateau = sched.crane_plateau_for_rise(index)
+        anchors.append((start, grow_start))
+        if index < len(rises) - 1:
+            anchors.append((end, plateau))
         else:
             anchors.append((end, roof_t))
     if anchors[-1][0] < old_times[-1]:
         anchors.append((old_times[-1], lower_t))
-    return anchors
+    return _dedupe_time_anchors(anchors)
+
+
+def _dedupe_time_anchors(anchors: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    ordered = sorted(anchors, key=lambda pair: pair[0])
+    deduped: list[tuple[float, float]] = []
+    for old_t, new_t in ordered:
+        if not deduped:
+            deduped.append((old_t, new_t))
+            continue
+        prev_old, prev_new = deduped[-1]
+        if old_t <= prev_old + 1e-6:
+            deduped[-1] = (prev_old, new_t)
+            continue
+        deduped.append((old_t, new_t))
+    return deduped
 
 
 def warp_time(old_t: float, anchors: list[tuple[float, float]]) -> float:
@@ -187,6 +211,50 @@ def warp_time(old_t: float, anchors: list[tuple[float, float]]) -> float:
     return anchors[-1][1]
 
 
+def remap_crane_time(
+    old_t: float,
+    *,
+    first_motion: float | None,
+    old_end: float,
+) -> float:
+    """Uniform crane clock — fallback when mast rises cannot be read from the GLB."""
+    lower_t = sched.crane_lower_end()
+    if old_end <= 0:
+        return 0.0
+    if first_motion is not None and first_motion > 0 and old_t <= first_motion:
+        return CRANE_LIFT_T0 * (old_t / first_motion)
+    old_lo = first_motion if first_motion is not None else 0.0
+    if old_end <= old_lo:
+        return CRANE_LIFT_T0
+    mix = (old_t - old_lo) / (old_end - old_lo)
+    return CRANE_LIFT_T0 + mix * (lower_t - CRANE_LIFT_T0)
+
+
+def extract_tower_rises(
+    gltf: dict, blob: bytearray, nodes: list
+) -> tuple[list[float], list[tuple[float, float, float]]]:
+    """Mast grow segments from ST_CraneTower scale (glTF Y-up height axis)."""
+    for animation in gltf.get("animations", []):
+        for channel in animation.get("channels", []):
+            node = nodes[channel["target"]["node"]]
+            if node.get("name") != "ST_CraneTower":
+                continue
+            if channel["target"]["path"] != "scale":
+                continue
+            sampler = animation["samplers"][channel["sampler"]]
+            times, _, components = _accessor_floats(gltf, blob, sampler["input"])
+            values, _, components = _accessor_floats(gltf, blob, sampler["output"])
+            if components < 2 or not times:
+                return [], []
+            height_axis = 1
+            time_list = [float(times[index]) for index in range(len(times))]
+            heights = [
+                float(values[index * components + height_axis]) for index in range(len(times))
+            ]
+            return time_list, height_rises(time_list, heights)
+    return [], []
+
+
 def stacked_sample_y(time: float, rest_y: float, drop_start: float, drop_dur: float, gap: float) -> float:
     """Keep the seated height. Sky-drop was the spawn bug (frames already in)."""
     del time, drop_start, drop_dur, gap
@@ -194,22 +262,21 @@ def stacked_sample_y(time: float, rest_y: float, drop_start: float, drop_dur: fl
 
 
 def grow_scale(time: float, rest: float, reveal_at: float, duration: float = GROW_DUR) -> float:
+    """Lego step — hidden until reveal, then full size (no smooth grow)."""
     if time < reveal_at:
         return GROW_START_SCALE * rest
-    if duration <= 0:
+    if duration <= 0 or time >= reveal_at + duration:
         return rest
-    ease = min(1.0, max(0.0, (time - reveal_at) / duration))
-    ease = ease * ease * (3.0 - 2.0 * ease)
-    start = GROW_START_SCALE * rest
-    return start + (rest - start) * ease
+    return rest
 
 
 def skin_scale(time: float, rest: float, reveal_at: float) -> float:
+    """Curtain/window snap-in."""
     if time < reveal_at:
         return 0.001
-    ease = min(1.0, max(0.0, (time - reveal_at) / 0.8))
-    ease = ease * ease * (3.0 - 2.0 * ease)
-    return 0.001 + (rest - 0.001) * ease
+    if time >= reveal_at + GROW_DUR:
+        return rest
+    return rest
 
 
 def _read_glb(path: str) -> tuple[dict, bytearray]:
@@ -341,44 +408,50 @@ def restack_glb(path: str = GLB_PATH) -> dict[str, float]:
             patched += 1
             drop_ends[name] = desired_end
 
-    # Warp crane mast steps onto the same clock as each restacked floor.
-    tower_times: list[float] = []
-    tower_heights: list[float] = []
+    # Uniform linear clock for all crane channels (mast, hook, boom).
+    first_motion: float | None = None
+    crane_old_end = 0.0
     for animation in gltf.get("animations", []):
         for channel in animation.get("channels", []):
             node = nodes[channel["target"]["node"]]
-            if node.get("name") != "ST_CraneTower" or channel["target"]["path"] != "scale":
+            name = node.get("name") or ""
+            if name not in {"ST_CraneHook", "ST_CranePayload"}:
                 continue
             sampler = animation["samplers"][channel["sampler"]]
             times, _, _ = _accessor_floats(gltf, blob, sampler["input"])
             values, _, components = _accessor_floats(gltf, blob, sampler["output"])
-            if components != 3:
+            changed = first_value_change(list(times), values, components)
+            if changed is None:
                 continue
-            tower_times = list(times)
-            tower_heights = [values[index * 3 + 1] for index in range(len(times))]
-    rises = height_rises(tower_times, tower_heights)
-    if len(rises) < 6 and tower_times and tower_heights:
-        max_h = max(tower_heights)
-        base_h = tower_heights[0]
-        climb_start = tower_times[0]
-        climb_end = tower_times[-1]
-        started = False
-        for time, height in zip(tower_times, tower_heights):
-            if not started and height > base_h + 0.04:
-                climb_start = time
-                started = True
-            if height >= max_h - 0.04:
-                climb_end = time
-        fake: list[tuple[float, float, float]] = []
-        for index in range(FLOOR_COUNT - 1):
-            mix_a = index / max(1, FLOOR_COUNT - 1)
-            mix_b = (index + 1) / max(1, FLOOR_COUNT - 1)
-            start = climb_start + mix_a * (climb_end - climb_start)
-            end = climb_start + mix_b * (climb_end - climb_start)
-            fake.append((start, end, base_h + mix_b * (max_h - base_h)))
-        rises = fake
-    anchors = crane_time_anchors(tower_times, rises)
-    drop_ends["ST_CranePlateaus"] = float(len(rises))
+            if first_motion is None or changed < first_motion:
+                first_motion = changed
+            crane_old_end = max(crane_old_end, float(times[-1]))
+    for animation in gltf.get("animations", []):
+        for channel in animation.get("channels", []):
+            node = nodes[channel["target"]["node"]]
+            name = node.get("name") or ""
+            if not name.startswith("ST_Crane"):
+                continue
+            sampler = animation["samplers"][channel["sampler"]]
+            times, _, _ = _accessor_floats(gltf, blob, sampler["input"])
+            if times:
+                crane_old_end = max(crane_old_end, float(times[-1]))
+    drop_ends["ST_CraneFirstMotion"] = float(first_motion or 0.0)
+    drop_ends["ST_CraneOldEnd"] = crane_old_end
+
+    tower_times, tower_rises = extract_tower_rises(gltf, blob, nodes)
+    drop_ends["ST_CraneRises"] = float(len(tower_rises))
+    anchor_times = tower_times if tower_times else [0.0, crane_old_end]
+    crane_anchors = crane_time_anchors(anchor_times, tower_rises, first_motion)
+
+    def remap_crane_channel(old_t: float) -> float:
+        if tower_rises:
+            return warp_time(old_t, crane_anchors)
+        return remap_crane_time(
+            old_t,
+            first_motion=first_motion,
+            old_end=crane_old_end,
+        )
 
     remapped_inputs: set[int] = set()
     for animation in gltf.get("animations", []):
@@ -394,9 +467,8 @@ def restack_glb(path: str = GLB_PATH) -> dict[str, float]:
             times, time_offset, _ = _accessor_floats(gltf, blob, input_index)
             if not times:
                 continue
-            if anchors:
-                for index in range(len(times)):
-                    times[index] = warp_time(float(times[index]), anchors)
+            for index in range(len(times)):
+                times[index] = remap_crane_channel(float(times[index]))
             blob[time_offset : time_offset + len(times) * 4] = times.tobytes()
             _write_accessor_minmax(gltf, input_index, times, 1)
             remapped_inputs.add(input_index)
@@ -482,6 +554,10 @@ def _self_check() -> None:
     assert parse_floor_index("ST_FrameFloor_12") == 12
     assert parse_floor_index("ST_FloorSlab_10") == 10
     assert parse_floor_index("ST_Windows_F3") == 3
+    assert parse_floor_index("ST_E_Windows_F12") == 12
+    assert stack_role("ST_W_Windows_F4") == "window"
+    assert stack_role("ST_Sat_0") == "roof"
+    assert stack_role("ST_AntennaCollar") == "roof"
     assert parse_floor_index("ST_CWPanel_12_S") == 12
     assert stack_role("ST_Columns_2") == "column"
     assert stack_role("ST_FloorSlab_2") == "slab"
@@ -509,12 +585,22 @@ def _self_check() -> None:
     assert desired_drop_end(12, "slab") < desired_drop_end(12, "roof")
     rises = [(8.0 + index * 8.0, 10.0 + index * 8.0, 1.0 + (index + 1) * 0.2) for index in range(12)]
     old = [0.0, 5.0] + [end for _s, end, _h in rises] + [120.0]
-    anchors = crane_time_anchors(old, rises)
+    anchors = crane_time_anchors(old, rises, first_motion=4.0)
     assert warp_time(0.0, anchors) == 0.0
-    assert abs(warp_time(rises[0][0], anchors) - STACK_T0) < 0.05
-    assert abs(warp_time(rises[0][1], anchors) - (STACK_T0 + FLOOR_SPAN)) < 0.05
-    assert abs(warp_time(rises[10][1], anchors) - (STACK_T0 + 11 * FLOOR_SPAN)) < 0.05
-    assert abs(warp_time(old[-1], anchors) - (last_window_end() + 1.4 + LOWER_SPAN)) < 0.05
+    assert abs(warp_time(4.0, anchors) - CRANE_LIFT_T0) < 0.05
+    floor1_done = sched.mast_grow_end_for_rise(0)
+    assert abs(warp_time(rises[0][1], anchors) - floor1_done) < 0.05
+    assert abs(sched.mast_grow_end_for_rise(0) - sched.mast_grow_start_for_rise(0) - MAST_GROW) < 0.01
+    assert abs(remap_crane_time(0.0, first_motion=4.0, old_end=120.0) - 0.0) < 1e-6
+    assert abs(remap_crane_time(4.0, first_motion=4.0, old_end=120.0) - CRANE_LIFT_T0) < 0.05
+    assert abs(remap_crane_time(120.0, first_motion=4.0, old_end=120.0) - sched.crane_lower_end()) < 0.05
+    span_early = remap_crane_time(34.0, first_motion=4.0, old_end=120.0) - remap_crane_time(30.0, first_motion=4.0, old_end=120.0)
+    span_late = remap_crane_time(94.0, first_motion=4.0, old_end=120.0) - remap_crane_time(90.0, first_motion=4.0, old_end=120.0)
+    assert abs(span_early - span_late) < 0.02
+    floor2_done = sched.mast_grow_end_for_rise(1)
+    assert abs(warp_time(rises[1][1], anchors) - floor2_done) < 0.05
+    floor5_done = sched.mast_grow_end_for_rise(4)
+    assert abs(warp_time(rises[4][1], anchors) - floor5_done) < 0.05
     print("SELF_CHECK_OK")
 
 

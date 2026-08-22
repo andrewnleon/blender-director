@@ -56,6 +56,8 @@ type StageCanvasProps = {
 };
 
 const GRID_STEP = 1;
+/** Yellow section lines and building dropzones — one 10×10 m lot per asset. */
+const BUILDING_ZONE_SIZE = 10;
 const BIND_COLLAPSE = 0.0001;
 const GROW_IN_THRESHOLD = 0.15;
 const CAMERA_TARGET: [number, number, number] = [0, 0.75, 0];
@@ -138,8 +140,18 @@ function snap(value: number, step = GRID_STEP) {
   return (Math.floor(value / step) + 0.5) * step;
 }
 
-function snapPlacement(x: number, z: number): [number, number, number] {
-  return [snap(x), 0, snap(z)];
+/** Snap footprints to their 10×10 m yard section (centers at 5, 15, 25…). */
+function getPlacementSnapStep(footprint: CatalogFootprint): number {
+  return Math.max(footprint.width, footprint.depth, BUILDING_ZONE_SIZE);
+}
+
+function snapPlacement(
+  x: number,
+  z: number,
+  footprint: CatalogFootprint,
+): [number, number, number] {
+  const step = getPlacementSnapStep(footprint);
+  return [snap(x, step), 0, snap(z, step)];
 }
 
 const DEFAULT_PLACEMENT_FOOTPRINT: CatalogFootprint = {
@@ -147,28 +159,26 @@ const DEFAULT_PLACEMENT_FOOTPRINT: CatalogFootprint = {
   depth: GRID_STEP,
 };
 
-/** Grid cell centers that overlap a footprint anchored at the snapped placement point. */
+/** Fine grid cell centers fully inside a snapped footprint (aligned to integer lines). */
 function getFootprintCellCenters(
   anchor: [number, number, number],
   footprint: CatalogFootprint,
   step = GRID_STEP,
 ): [number, number, number][] {
   const [anchorX, anchorY, anchorZ] = anchor;
-  const halfWidth = footprint.width / 2;
-  const halfDepth = footprint.depth / 2;
-  const minX = anchorX - halfWidth;
-  const maxX = anchorX + halfWidth;
-  const minZ = anchorZ - halfDepth;
-  const maxZ = anchorZ + halfDepth;
-  const firstCenterX = snap(minX, step);
-  const lastCenterX = snap(maxX - step * 1e-4, step);
-  const firstCenterZ = snap(minZ, step);
-  const lastCenterZ = snap(maxZ - step * 1e-4, step);
+  const countX = Math.round(footprint.width / step);
+  const countZ = Math.round(footprint.depth / step);
+  const startX = anchorX - footprint.width / 2 + step / 2;
+  const startZ = anchorZ - footprint.depth / 2 + step / 2;
   const cells: [number, number, number][] = [];
 
-  for (let x = firstCenterX; x <= lastCenterX + step * 1e-4; x += step) {
-    for (let z = firstCenterZ; z <= lastCenterZ + step * 1e-4; z += step) {
-      cells.push([x, anchorY, z]);
+  for (let indexX = 0; indexX < countX; indexX += 1) {
+    for (let indexZ = 0; indexZ < countZ; indexZ += 1) {
+      cells.push([
+        startX + indexX * step,
+        anchorY,
+        startZ + indexZ * step,
+      ]);
     }
   }
 
@@ -302,7 +312,7 @@ function Ground({
     if (!placing) return;
     event.stopPropagation();
     const { x, z } = event.point;
-    setHoverCell(snapPlacement(x, z));
+    setHoverCell(snapPlacement(x, z, footprint));
   }
 
   function handlePointerOut() {
@@ -313,7 +323,7 @@ function Ground({
     if (!placing || !placeCatalogId) return;
     event.stopPropagation();
     const { x, z } = event.point;
-    const position = snapPlacement(x, z);
+    const position = snapPlacement(x, z, footprint);
     if (!canPlaceAt(placeCatalogId, position, objects)) return;
     onPlace(position);
   }
@@ -347,11 +357,24 @@ function Ground({
         cellSize={GRID_STEP}
         cellThickness={0.6}
         cellColor="#5c6558"
-        sectionSize={5}
+        sectionSize={BUILDING_ZONE_SIZE}
         sectionThickness={1.15}
         sectionColor="#8a9a6a"
         fadeStrength={0}
       />
+      {placing && hoverCell ? (
+        <Grid
+          position={[hoverCell[0], 0.022, hoverCell[2]]}
+          args={[footprint.width, footprint.depth]}
+          cellSize={GRID_STEP}
+          cellThickness={0.75}
+          cellColor="#7a8a72"
+          sectionSize={footprint.width}
+          sectionThickness={1.35}
+          sectionColor="#a8b888"
+          fadeStrength={0}
+        />
+      ) : null}
     </group>
   );
 }
@@ -692,7 +715,7 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=20");
+useGLTF.preload("/models/skyscraper.glb?v=42");
 
 export function StageCanvas({
   objects,

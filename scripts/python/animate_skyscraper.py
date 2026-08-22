@@ -12,8 +12,10 @@ FPS = 24
 DROP_HOLD = 6
 BOLT_HOLD = 4
 CURE_HOLD = 8
-# C&C grow — tiny at spawn so the yard click is an empty pad, not an installed frame.
+# Lego bind pose — tiny at spawn so yard click is empty pad, not installed frame.
 GROW_START_SCALE = 0.04
+# Snap-in over this many frames (constant interpolation — no organic grow).
+SNAP_FRAMES = 2
 
 # Boom sweep angles — crane rotates over the pad.
 BOOM_ANGLES = (-158, -176, -108, -172, -128, -110, -168, -136, -112, -174, -150, -132)
@@ -69,19 +71,25 @@ def appear(obj, frame_on, frame_off=None):
 
 
 def pop_in(obj, frame_on: int) -> None:
-    """Snap-in at fixed height — used for windows after steel inspection."""
+    """Lego snap-in at fixed height — windows, beacon, small inserts."""
     sc = obj.scale.copy()
     loc = obj.location.copy()
     # Keep location seated. hide_viewport bakes glTF translation to origin.
     obj.location = loc
     obj.keyframe_insert("location", frame=1)
-    obj.scale = (sc.x * 0.04, sc.y * 0.04, sc.z * 0.04)
+    tiny = (
+        sc.x * GROW_START_SCALE,
+        sc.y * GROW_START_SCALE,
+        sc.z * GROW_START_SCALE,
+    )
+    obj.scale = tiny
     obj.keyframe_insert("scale", frame=1)
     pre = max(1, frame_on - 1)
     obj.keyframe_insert("scale", frame=pre)
+    snap_end = frame_on + SNAP_FRAMES
     obj.scale = sc
-    obj.keyframe_insert("scale", frame=frame_on + 2)
-    obj.keyframe_insert("location", frame=frame_on + 2)
+    obj.keyframe_insert("scale", frame=snap_end)
+    obj.keyframe_insert("location", frame=snap_end)
 
 
 def pour_spread(obj, frame_start: int, duration: int = 18) -> int:
@@ -167,6 +175,29 @@ def constant_hides():
                     keyframe.interpolation = "CONSTANT"
 
 
+def constant_scales():
+    """Lego snap — scale keys step, not ease."""
+    for obj in bpy.data.objects:
+        if not obj.name.startswith("ST_"):
+            continue
+        for fcu in iter_fcurves(obj):
+            if fcu.data_path == "scale":
+                for keyframe in fcu.keyframe_points:
+                    keyframe.interpolation = "CONSTANT"
+
+
+def linear_crane_fcurves() -> None:
+    """Crane translate/rotate — linear between keys, no BEZIER ease."""
+    for obj in bpy.data.objects:
+        if not obj.name.startswith("ST_Crane"):
+            continue
+        for fcu in iter_fcurves(obj):
+            if "hide" in fcu.data_path:
+                continue
+            for keyframe in fcu.keyframe_points:
+                keyframe.interpolation = "LINEAR"
+
+
 def classify():
     always = {"ST_DirtGround", "ST_Sun", "ST_Fill", "ST_Camera"}
     site_prep = []
@@ -198,7 +229,7 @@ def classify():
             continue
         if name in {"ST_Pad"} or name.startswith("ST_SiteCrate"):
             site_prep.append(obj)
-        elif name.startswith("ST_Stake") or name.startswith("ST_Fence") or name == "ST_TempOffice":
+        elif name.startswith("ST_Stake") or name.startswith("ST_Fence"):
             site_prep.append(obj)
         elif name == "ST_Foundation":
             foundation.append(obj)
@@ -227,17 +258,22 @@ def classify():
             floor = _floor_index_from_name(name, "ST_RibBand_")
             if floor is not None:
                 add_curtain(floor, obj)
-        elif name.startswith("ST_Windows_F") or name.startswith("ST_N_Windows_F"):
-            prefix = "ST_Windows_F" if name.startswith("ST_Windows_F") else "ST_N_Windows_F"
-            floor = _floor_index_from_name(name, prefix)
+        elif "Windows_F" in name:
+            floor = None
+            for token in name.split("_"):
+                if token.startswith("F") and token[1:].isdigit():
+                    floor = int(token[1:])
             if floor is not None:
                 add_windows(floor, obj)
         elif name in {"ST_Roof", "ST_Parapet"}:
             roof.append(obj)
-        elif name.startswith("ST_HVAC") or name.startswith("ST_Vent") or name == "ST_Antenna":
+        elif (
+            name.startswith("ST_HVAC")
+            or name.startswith("ST_Vent")
+            or name.startswith("ST_Sat")
+            or name.startswith("ST_Antenna")
+        ):
             systems.append(obj)
-        elif name == "ST_Beacon":
-            activation.append(obj)
         elif name.startswith("ST_Crane"):
             equipment.append(obj)
 
@@ -277,9 +313,10 @@ def classify():
 def crane_pose_for_top(world_top_z: float, pad_z: float) -> tuple[float, float, float, float]:
     """Mast scale/center, jib local Z, hook local Z so the hook sits on the roof."""
     import build_skyscraper as site
+    import construction_schedule as sched
 
-    jib_clearance = 2.4
-    hook_above = 0.35
+    jib_clearance = sched.JIB_CLEARANCE
+    hook_above = sched.HOOK_ABOVE
     jib_z = max(3.2, world_top_z - pad_z + jib_clearance)
     tower_h = max(2.6, jib_z - site.CRANE_TOWER_BASE_Z + 0.2)
     tower_center_z = site.CRANE_TOWER_BASE_Z + tower_h * 0.5
@@ -380,7 +417,7 @@ def crane_lift(
     floor_index: int | None = None,
     top_z: float | None = None,
 ) -> int:
-    """C&C scale-up from the seated pad. Never explode from the sky.
+    """Lego snap-in at seated height. Crane swings; piece pops when hook sets.
 
     Tiny scale at frame 1 so spawn / glTF bind pose has no installed frame.
     Do not key hide_viewport on exported meshes — the baker records hidden
@@ -398,7 +435,6 @@ def crane_lift(
 
     final_loc = piece.location.copy()
     rest_scale = piece.scale.copy()
-    height = max(float(piece.dimensions.z), 0.08)
     tiny = (
         rest_scale.x * GROW_START_SCALE,
         rest_scale.y * GROW_START_SCALE,
@@ -407,26 +443,24 @@ def crane_lift(
 
     f_place = frame_start + duration
     f_bolt = f_place + BOLT_HOLD
+    f_snap = max(1, f_place - SNAP_FRAMES + 1)
     pre = max(1, frame_start - 1)
-    grow_from = Vector((final_loc.x, final_loc.y, final_loc.z - height * 0.48))
 
+    # Fixed seat — no vertical grow-from-ground.
     piece.location = final_loc
-    piece.scale = tiny
     piece.keyframe_insert("location", frame=1)
-    piece.keyframe_insert("scale", frame=1)
     piece.keyframe_insert("location", frame=pre)
-    piece.keyframe_insert("scale", frame=pre)
-
-    piece.location = grow_from
-    piece.scale = tiny
-    piece.keyframe_insert("location", frame=frame_start)
-    piece.keyframe_insert("scale", frame=frame_start)
-
-    piece.location = final_loc
-    piece.scale = rest_scale
+    piece.keyframe_insert("location", frame=f_snap)
     piece.keyframe_insert("location", frame=f_place)
-    piece.keyframe_insert("scale", frame=f_place)
     piece.keyframe_insert("location", frame=f_bolt)
+
+    # Scale hidden until crane places, then snap to full (constant fcurve).
+    piece.scale = tiny
+    piece.keyframe_insert("scale", frame=1)
+    piece.keyframe_insert("scale", frame=pre)
+    piece.keyframe_insert("scale", frame=f_snap)
+    piece.scale = rest_scale
+    piece.keyframe_insert("scale", frame=f_place)
     piece.keyframe_insert("scale", frame=f_bolt)
 
     _animate_crane_rig(frame_start, duration, boom_deg, hook_high, hook_low)
@@ -454,9 +488,13 @@ class ConstructionDirector:
     def advance(self, frames: int) -> None:
         self.frame += frames
 
-    def raise_crane(self, top_z: float) -> None:
-        """Grow the mast so the hook rides the new roof."""
+    def raise_crane(self, top_z: float, *, floor_index: int | None = None) -> None:
+        """Grow mast to schedule height — floor completion drives next pour."""
         import build_skyscraper as site
+        import construction_schedule as sched
+
+        if floor_index is not None:
+            top_z = sched.mast_target_for_floor(floor_index)
 
         pad_z = site.PAD_Z
         if self.crane_top_z <= 0.0:
@@ -467,7 +505,7 @@ class ConstructionDirector:
             return
         hold = max(1, self.frame)
         key_crane_mast(hold, self.crane_top_z, pad_z)
-        grow_end = hold + 10
+        grow_end = hold + sched.MAST_RAISE_FRAMES
         key_crane_mast(grow_end, top_z, pad_z)
         self.crane_top_z = top_z
         self.frame = grow_end
@@ -483,10 +521,11 @@ class ConstructionDirector:
 
     def run(self) -> int:
         import build_skyscraper as site
+        import construction_schedule as sched
 
         crane_xy = site.SITE_CRANE
         pad_z = site.PAD_Z
-        self.crane_top_z = site.floor_ring_z(1)
+        self.crane_top_z = sched.mast_target_for_floor(1)
         key_crane_mast(1, self.crane_top_z, pad_z)
         crane = bpy.data.objects.get("ST_Crane")
         if crane is not None:
@@ -502,8 +541,6 @@ class ConstructionDirector:
                 appear(obj, self.frame + 4 + int(obj.name.split("_")[-1]) * 2)
             elif obj.name.startswith("ST_Fence"):
                 appear(obj, self.frame + 12 + int(obj.name.split("_")[-1]) * 2)
-            elif obj.name == "ST_TempOffice":
-                appear(obj, self.frame + 18)
             else:
                 appear(obj, self.frame + 8)
         self.advance(36)
@@ -573,8 +610,8 @@ class ConstructionDirector:
 
         for floor_index in range(1, floor_count + 1):
             self.mark(f"P06_Floor_{floor_index:02d}")
-            floor_top = site.floor_ring_z(floor_index)
-            self.raise_crane(floor_top)
+            floor_beat = sched.beat_for_floor(floor_index)
+            floor_top = floor_beat.crane_mast_z
 
             if floor_index - 1 < len(columns):
                 self.frame = crane_lift(
@@ -622,11 +659,14 @@ class ConstructionDirector:
                     top_z=floor_top,
                 )
 
+            # Mast grows only after this floor's slab — height = completed floors only.
+            self.raise_crane(sched.mast_height_after_completed(floor_index))
+
         self.mark("P11_FrameDone")
 
         # Envelope after the RC frame — walls first, glass after, never same beat.
         self.mark("P11_Walls")
-        crown_z = site.floor_ring_z(max(1, floor_count))
+        crown_z = sched.mast_height_after_completed(floor_count)
         self.raise_crane(crown_z)
         for floor_index in range(1, floor_count + 1):
             if floor_index - 1 < len(curtains):
@@ -675,6 +715,10 @@ class ConstructionDirector:
                 floor_index=max(1, floor_count),
                 top_z=roof_top,
             )
+        beacon = bpy.data.objects.get("ST_Beacon")
+        if beacon is not None:
+            pop_in(beacon, self.frame)
+            self.advance(6)
 
         # Done — retract mast to rest height. Stay parked beside the pad.
         crane_park = self.frame
@@ -692,6 +736,8 @@ class ConstructionDirector:
         self.mark("P17_Commission")
         complete_start = crane_park + 24
         for obj in self.groups["activation"]:
+            if obj.name == "ST_Beacon":
+                continue
             appear(obj, complete_start + 6)
 
         lights_on = complete_start + 10
@@ -738,6 +784,8 @@ def animate_groups(groups):
     COMPLETE_START = END - 48
 
     constant_hides()
+    constant_scales()
+    linear_crane_fcurves()
     return director.markers
 
 
@@ -793,6 +841,9 @@ def setup(save_path: str | None = None) -> dict[str, int]:
     import build_skyscraper
 
     importlib.reload(build_skyscraper)
+    import construction_schedule as sched_mod
+
+    importlib.reload(sched_mod)
     build_skyscraper.build_skyscraper()
     make_build_lights()
     groups = classify()

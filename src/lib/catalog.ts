@@ -80,7 +80,7 @@ export const CATALOG: CatalogItem[] = [
 
     kind: "glb",
 
-    url: "/models/skyscraper.glb?v=21",
+    url: "/models/skyscraper.glb?v=42",
 
     accent: "#6a9ec4",
 
@@ -88,7 +88,7 @@ export const CATALOG: CatalogItem[] = [
 
     maxCount: 1,
 
-    footprint: { width: 8, depth: 8 },
+    footprint: { width: 10, depth: 10 },
 
     inLibrary: true,
 
@@ -128,6 +128,8 @@ export function canPlaceCatalogItem(
 
   objects: readonly PlacedObject[],
 
+  sandboxMode = false,
+
 ): boolean {
 
   const item = getCatalogItem(catalogId);
@@ -138,7 +140,7 @@ export function canPlaceCatalogItem(
 
   }
 
-  if (item.maxCount === undefined) {
+  if (sandboxMode || item.maxCount === undefined) {
 
     return true;
 

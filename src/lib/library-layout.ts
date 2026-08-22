@@ -12,7 +12,7 @@ export const LIBRARY_COLUMN_COUNT = 4;
 export const LIBRARY_CELL_PADDING = 3;
 
 /** Fallback when a catalog item omits footprint metadata. */
-export const DEFAULT_LIBRARY_FOOTPRINT = { width: 8, depth: 8 } as const;
+export const DEFAULT_LIBRARY_FOOTPRINT = { width: 10, depth: 10 } as const;
 
 export function getLibraryCatalogItems(): CatalogItem[] {
   return CATALOG.filter((item) => item.inLibrary === true);

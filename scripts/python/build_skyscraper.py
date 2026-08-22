@@ -5,27 +5,41 @@ import math
 
 import bmesh
 import bpy
-from mathutils import Euler, Vector
+from mathutils import Euler, Matrix, Vector
 
 PREFIX = "ST_"
 PAD_Z = 0.32
-PAD_HALF = 4.2
+# Yard yellow sections are 10×10 m (±5 m lines). Keep site mesh inset — don't pin outer fence to line.
+SITE_HALF = 4.96
+FENCE_THICKNESS = 0.08
+# Pad flush with fence inner face.
+PAD_HALF = SITE_HALF - FENCE_THICKNESS
+# Fence centerline so outer face lands at ±SITE_HALF (inside yellow boundary).
+FENCE_HALF = SITE_HALF - FENCE_THICKNESS / 2
 FOOTPRINT = (6.0, 6.0)
 HEIGHT = 18.0
 FLOORS = 12
-# Typical RC frame: 3×4 column grid (12 posts), beams, then slabs.
-COLUMN_GRID = (3, 4)
-COLUMN_SIZE = 0.28
-BEAM_SIZE = 0.16
+# Typical RC frame: 4×4 column grid (16 posts), beams, then slabs.
+COLUMN_GRID = (4, 4)
+COLUMN_SIZE = 0.22
+BEAM_SIZE = 0.12
 
-# Tower crane rest pose — NE of the 8.4 m pad. Mast grows in animation.
-SITE_CRANE = (5.8, 5.0, PAD_Z)
-SITE_ROAD = (-11.0, -8.0, PAD_Z)
-CRANE_TOWER_REST_H = 5.4
-CRANE_TOWER_BASE_Z = 0.6
-CRANE_BOOM_REST_Z = 5.73
-CRANE_CAB_REST_Z = 5.7
-CRANE_HOOK_REST = (4.6, 0.0, -1.15)
+# Tower crane — NE outside the pad; boom sweeps over the site toward tower center.
+SITE_CRANE = (7.2, 7.0, PAD_Z)
+SITE_ROAD = (-9.0, -6.5, PAD_Z)
+CRANE_TRACK_H = 0.22
+CRANE_BASE_H = 0.42
+# Local Z=0 is pad top (root at SITE_CRANE.z = PAD_Z). Tracks touch first; base on tracks.
+CRANE_TRACK_Z = CRANE_TRACK_H * 0.5
+CRANE_BASE_Z = CRANE_TRACK_H + CRANE_BASE_H * 0.5
+CRANE_TOWER_REST_H = 4.2
+CRANE_TOWER_BASE_Z = CRANE_TRACK_H + CRANE_BASE_H
+CRANE_BOOM_REST_Z = CRANE_TOWER_BASE_Z + CRANE_TOWER_REST_H - 0.22
+CRANE_CAB_REST_Z = CRANE_BOOM_REST_Z - 0.03
+# Longer jib so hook reaches tower center from NE crane stand (~10 m horizontal).
+CRANE_BOOM_LEN = 9.6
+CRANE_HOOK_X = CRANE_BOOM_LEN - 0.25
+CRANE_HOOK_REST = (CRANE_HOOK_X, 0.0, -0.95)
 
 
 def floor_height() -> float:
@@ -128,6 +142,8 @@ def make_materials() -> None:
     game_mat("ST_Steel", (0.18, 0.19, 0.21), roughness=0.4, metallic=0.78)
     game_mat("ST_FrameBlack", (0.02, 0.02, 0.025), roughness=0.38, metallic=0.88)
     game_mat("ST_Yellow", (0.92, 0.78, 0.18), roughness=0.35, emit=0.35)
+    game_mat("ST_AntennaRed", (0.82, 0.09, 0.10), roughness=0.32, metallic=0.28, emit=0.18)
+    game_mat("ST_BeaconGlow", (1.0, 0.12, 0.08), roughness=0.18, metallic=0.1, emit=1.2)
     game_mat("ST_ConstrYellow", (0.93, 0.74, 0.07), roughness=0.42, metallic=0.15)
     game_mat("ST_ConstrBlack", (0.12, 0.12, 0.14), roughness=0.55, metallic=0.25)
     game_mat("ST_ConstrCab", (0.28, 0.32, 0.36), roughness=0.45, metallic=0.2)
@@ -217,40 +233,68 @@ def make_cylinder(name, loc, radius, depth, collection, mat, segs=16, rot=(0, 0,
     return obj
 
 
-def window_row(prefix, width, depth, floor_index, cols, collection, outward_y):
-    """Single-floor window row — object origin at floor center."""
+def window_row(prefix, width, depth, floor_index, cols, collection, face: str):
+    """Glass row on one face. face is N, S, E, or W."""
     floor_h = floor_height()
     floor_center = floor_center_z(floor_index)
     bm = bmesh.new()
-    col_w = width / cols
-    for column in range(cols):
-        x = -width * 0.5 + col_w * (column + 0.5)
-        y = outward_y * (depth * 0.5 + 0.12)
-        add_box_mesh(bm, (x, y, 0.0), (col_w * 0.72, 0.06, floor_h * 0.62))
+    if face in {"N", "S"}:
+        col_w = width / cols
+        outward = 1.0 if face == "N" else -1.0
+        for column in range(cols):
+            x = -width * 0.5 + col_w * (column + 0.5)
+            y = outward * (depth * 0.5 + 0.12)
+            add_box_mesh(bm, (x, y, 0.0), (col_w * 0.72, 0.06, floor_h * 0.62))
+    else:
+        col_w = depth / cols
+        outward = 1.0 if face == "E" else -1.0
+        for column in range(cols):
+            y = -depth * 0.5 + col_w * (column + 0.5)
+            x = outward * (width * 0.5 + 0.12)
+            add_box_mesh(bm, (x, y, 0.0), (0.06, col_w * 0.72, floor_h * 0.62))
     return mesh_from_bm(f"{prefix}_F{floor_index}", bm, collection, "ST_Window", (0, 0, floor_center))
+
+
+def bake_mesh_translation(obj) -> None:
+    """Bake object location into mesh data so glTF bind pose stays correct when hidden at frame 1."""
+    if obj.type != "MESH" or obj.parent is not None:
+        return
+    loc = obj.location.copy()
+    if loc.length_squared < 1e-12:
+        return
+    obj.data.transform(Matrix.Translation(loc))
+    obj.location = (0.0, 0.0, 0.0)
 
 
 def make_site() -> None:
     site = coll(f"{PREFIX}Site")
-    make_cube(f"{PREFIX}DirtGround", (0, 0, -0.12), (24, 24, 0.24), site, "ST_Dirt")
-    make_cube(f"{PREFIX}Pad", (0, 0, 0.16), (8.4, 8.4, 0.32), site, "ST_Concrete")
-    make_cube(f"{PREFIX}Foundation", (0, 0, 0.34), (7.2, 7.2, 0.28), site, "ST_Concrete")
-    make_cube(f"{PREFIX}ExcavPit", (0, 0, -0.28), (5.6, 5.6, 0.42), site, "ST_Dirt")
-    make_cube(f"{PREFIX}UtilRun", (0, -2.1, -0.04), (4.2, 0.28, 0.18), site, "ST_DarkMetal")
-    for index, (x, y) in enumerate(((-2.4, -2.4), (2.4, -2.4), (-2.4, 2.4), (2.4, 2.4))):
-        make_cube(f"{PREFIX}SiteCrate_{index}", (x, y, 0.55), (0.9, 0.9, 0.9), site, "ST_ConstrYellow")
-        make_cube(f"{PREFIX}Stake_{index}", (x, y, 0.62), (0.1, 0.1, 0.55), site, "ST_ConstrYellow")
-    fence_half = PAD_HALF + 0.35
+    pad_size = PAD_HALF * 2
+    fence_len = FENCE_HALF * 2
+    pad_extent = max(pad_size, 10.0)
+    make_cube(f"{PREFIX}DirtGround", (0, 0, -0.12), (pad_extent + 6, pad_extent + 6, 0.24), site, "ST_Dirt")
+    make_cube(f"{PREFIX}Pad", (0, 0, 0.16), (pad_size, pad_size, 0.32), site, "ST_Concrete")
+    fw, fd = FOOTPRINT
+    make_cube(f"{PREFIX}Foundation", (0, 0, 0.34), (fw, fd, 0.28), site, "ST_Concrete")
+    make_cube(f"{PREFIX}ExcavPit", (0, 0, -0.28), (fw * 0.82, fd * 0.82, 0.42), site, "ST_Dirt")
+    make_cube(f"{PREFIX}UtilRun", (0, -2.0, -0.04), (3.6, 0.28, 0.18), site, "ST_DarkMetal")
+    crate_inset = PAD_HALF - 0.8
+    for index, (x, y) in enumerate(
+        ((-crate_inset, -crate_inset), (crate_inset, -crate_inset), (-crate_inset, crate_inset), (crate_inset, crate_inset))
+    ):
+        make_cube(f"{PREFIX}SiteCrate_{index}", (x, y, 0.55), (0.5, 0.5, 0.5), site, "ST_ConstrYellow")
+        make_cube(f"{PREFIX}Stake_{index}", (x, y, 0.58), (0.08, 0.08, 0.45), site, "ST_ConstrYellow")
+    fence_th = FENCE_THICKNESS
     for index, (loc, dims) in enumerate(
         (
-            ((0, -fence_half, 0.42), (8.8, 0.08, 0.85)),
-            ((0, fence_half, 0.42), (8.8, 0.08, 0.85)),
-            ((-fence_half, 0, 0.42), (0.08, 8.8, 0.85)),
-            ((fence_half, 0, 0.42), (0.08, 8.8, 0.85)),
+            ((0, -FENCE_HALF, 0.42), (fence_len, fence_th, 0.85)),
+            ((0, FENCE_HALF, 0.42), (fence_len, fence_th, 0.85)),
+            ((-FENCE_HALF, 0, 0.42), (fence_th, fence_len, 0.85)),
+            ((FENCE_HALF, 0, 0.42), (fence_th, fence_len, 0.85)),
         )
     ):
         make_cube(f"{PREFIX}Fence_{index}", loc, dims, site, "ST_ConstrBlack")
-    make_cube(f"{PREFIX}TempOffice", (-6.8, 5.2, 0.62), (2.4, 1.8, 1.25), site, "ST_ConstrCab")
+    for obj in site.objects:
+        bake_mesh_translation(obj)
 
 
 def make_construction_meshes() -> None:
@@ -324,19 +368,40 @@ def make_crane() -> tuple:
     root = bpy.data.objects.new(f"{PREFIX}Crane", None)
     root.empty_display_size = 1.4
     root.location = SITE_CRANE
+    root.rotation_euler = (0.0, 0.0, 0.0)
     link(root, construction)
 
-    base = make_cube(f"{PREFIX}CraneBase", (0, 0, 0.35), (1.6, 1.6, 0.5), construction, "ST_ConstrYellow")
-    track_l = make_cube(f"{PREFIX}CraneTrackL", (0, 0.7, 0.16), (1.9, 0.35, 0.28), construction, "ST_ConstrBlack")
-    track_r = make_cube(f"{PREFIX}CraneTrackR", (0, -0.7, 0.16), (1.9, 0.35, 0.28), construction, "ST_ConstrBlack")
-    tower = make_cube(
-        f"{PREFIX}CraneTower",
-        (0, 0, CRANE_TOWER_BASE_Z + CRANE_TOWER_REST_H * 0.5),
-        (0.38, 0.38, CRANE_TOWER_REST_H),
+    base = make_cube(
+        f"{PREFIX}CraneBase",
+        (0, 0, CRANE_BASE_Z),
+        (1.0, 1.0, CRANE_BASE_H),
         construction,
         "ST_ConstrYellow",
     )
-    cab = make_cube(f"{PREFIX}CraneCab", (0.45, 0, CRANE_CAB_REST_Z), (0.7, 0.7, 0.7), construction, "ST_ConstrCab")
+    track_l = make_cube(
+        f"{PREFIX}CraneTrackL",
+        (0, 0.45, CRANE_TRACK_Z),
+        (1.2, 0.28, CRANE_TRACK_H),
+        construction,
+        "ST_ConstrBlack",
+    )
+    track_r = make_cube(
+        f"{PREFIX}CraneTrackR",
+        (0, -0.45, CRANE_TRACK_Z),
+        (1.2, 0.28, CRANE_TRACK_H),
+        construction,
+        "ST_ConstrBlack",
+    )
+    tower = make_cube(
+        f"{PREFIX}CraneTower",
+        (0, 0, CRANE_TOWER_BASE_Z + CRANE_TOWER_REST_H * 0.5),
+        (0.28, 0.28, CRANE_TOWER_REST_H),
+        construction,
+        "ST_ConstrYellow",
+    )
+    cab = make_cube(f"{PREFIX}CraneCab", (0.32, 0, CRANE_CAB_REST_Z), (0.5, 0.5, 0.5), construction, "ST_ConstrCab")
+    for part in (base, track_l, track_r, tower, cab):
+        part.rotation_euler = (0.0, 0.0, 0.0)
     _parent_parts(root, (base, track_l, track_r, tower, cab))
 
     boom_root = bpy.data.objects.new(f"{PREFIX}CraneBoomPivot", None)
@@ -345,19 +410,128 @@ def make_crane() -> tuple:
     boom_root.location = (0.0, 0.0, CRANE_BOOM_REST_Z)
     link(boom_root, construction)
 
-    boom = make_cube(f"{PREFIX}CraneBoom", (2.4, 0, 0), (5.2, 0.22, 0.22), construction, "ST_ConstrYellow")
-    boom2 = make_cube(f"{PREFIX}CraneBoom2", (4.6, 0, -0.15), (0.18, 0.18, 1.1), construction, "ST_ConstrYellow")
-    cable = make_cube(f"{PREFIX}CraneCable", (4.6, 0, -0.65), (0.04, 0.04, 1.0), construction, "ST_ConstrBlack")
+    hook_x = CRANE_HOOK_X
+    boom_half = CRANE_BOOM_LEN * 0.5
+    boom = make_cube(
+        f"{PREFIX}CraneBoom",
+        (boom_half, 0, 0),
+        (CRANE_BOOM_LEN, 0.18, 0.18),
+        construction,
+        "ST_ConstrYellow",
+    )
+    boom2 = make_cube(f"{PREFIX}CraneBoom2", (hook_x, 0, -0.12), (0.16, 0.16, 0.8), construction, "ST_ConstrYellow")
+    cable = make_cube(f"{PREFIX}CraneCable", (hook_x, 0, -0.5), (0.04, 0.04, 0.9), construction, "ST_ConstrBlack")
     hook = make_cube(
         f"{PREFIX}CraneHook",
         CRANE_HOOK_REST,
-        (0.16, 0.16, 0.35),
+        (0.12, 0.12, 0.28),
         construction,
         "ST_ConstrBlack",
     )
-    payload = make_cube(f"{PREFIX}CranePayload", (4.6, 0, -1.65), (1.1, 0.55, 0.22), construction, "ST_Steel")
+    payload = make_cube(f"{PREFIX}CranePayload", (hook_x, 0, -1.35), (0.65, 0.35, 0.18), construction, "ST_Steel")
     _parent_parts(boom_root, (boom, boom2, cable, hook, payload))
     return root, boom_root
+
+
+def make_satellite_dish(
+    name: str,
+    loc: tuple[float, float, float],
+    rot: tuple[float, float, float],
+    radius: float,
+    collection,
+) -> None:
+    """Parabolic dish + feed horn on ``name``; support arm on ``{name}Arm``."""
+    arm_x, arm_y, arm_z = loc
+    hub_dist = math.hypot(arm_x, arm_y)
+    arm_yaw = math.atan2(arm_y, arm_x)
+    arm_len = hub_dist * 0.46 + 0.22
+
+    arm = make_cube(
+        f"{name}Arm",
+        (arm_x * 0.44, arm_y * 0.44, arm_z - 0.16),
+        (0.07, 0.07, arm_len),
+        collection,
+        "ST_DarkMetal",
+    )
+    arm.rotation_euler = (
+        math.atan2(hub_dist * 0.44, 0.36),
+        0.0,
+        arm_yaw + math.pi / 2,
+    )
+
+    dish_depth = radius * 0.22
+    horn_r = max(radius * 0.055, 0.022)
+    horn_len = radius * 0.17
+
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    link(obj, collection)
+
+    bm = bmesh.new()
+    bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        segments=24,
+        radius1=radius,
+        radius2=radius * 0.05,
+        depth=dish_depth,
+    )
+    bmesh.ops.rotate(
+        bm,
+        cent=(0.0, 0.0, 0.0),
+        matrix=Matrix.Rotation(math.pi, 3, "X"),
+        verts=bm.verts,
+    )
+
+    bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        segments=12,
+        radius1=horn_r,
+        radius2=horn_r * 0.5,
+        depth=horn_len,
+        matrix=Matrix.Translation((0.0, 0.0, horn_len * 0.5 + radius * 0.05)),
+    )
+
+    bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        segments=10,
+        radius1=0.045,
+        radius2=0.045,
+        depth=0.14,
+        matrix=Matrix.Translation((0.0, 0.0, -dish_depth * 0.42)),
+    )
+
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.location = loc
+    obj.rotation_euler = rot
+    assign(obj, "ST_LightMetal")
+
+
+def make_roof_antenna(collection, roof_z: float) -> None:
+    """Red mast plus satellite dishes on the roof."""
+    mast_h = 2.4
+    make_cylinder(
+        f"{PREFIX}Antenna",
+        (0.0, 0.0, roof_z + 0.45 + mast_h * 0.5),
+        0.08,
+        mast_h,
+        collection,
+        "ST_AntennaRed",
+        segs=12,
+    )
+    make_cube(f"{PREFIX}AntennaCollar", (0.0, 0.0, roof_z + 0.48), (0.28, 0.28, 0.16), collection, "ST_DarkMetal")
+    make_cube(f"{PREFIX}Beacon", (0.0, 0.0, roof_z + 0.45 + mast_h + 0.12), (0.16, 0.16, 0.16), collection, "ST_BeaconGlow")
+
+    dishes = (
+        ("ST_Sat_0", (0.85, 0.55, roof_z + 1.15), (math.radians(58), 0.0, math.radians(38)), 0.42),
+        ("ST_Sat_1", (-0.75, 0.70, roof_z + 1.45), (math.radians(50), 0.0, math.radians(-128)), 0.36),
+        ("ST_Sat_2", (0.70, -0.80, roof_z + 1.75), (math.radians(62), 0.0, math.radians(155)), 0.32),
+    )
+    for name, loc, rot, radius in dishes:
+        make_satellite_dish(name, loc, rot, radius, collection)
 
 
 def make_tower() -> None:
@@ -417,17 +591,19 @@ def make_tower() -> None:
             buildings,
             "ST_Wall",
         )
-        window_row("ST_Windows", width, depth, floor, cols, buildings, outward_y=-1)
-        window_row("ST_N_Windows", width, depth, floor, cols, buildings, outward_y=1)
+        window_row("ST_Windows", width, depth, floor, cols, buildings, "S")
+        window_row("ST_N_Windows", width, depth, floor, cols, buildings, "N")
+        window_row("ST_E_Windows", width, depth, floor, cols, buildings, "E")
+        window_row("ST_W_Windows", width, depth, floor, cols, buildings, "W")
 
-    make_cube(f"{PREFIX}Roof", (0, 0, PAD_Z + HEIGHT + 0.12), (width * 0.92, depth * 0.92, 0.18), buildings, "ST_DarkMetal")
-    make_cube(f"{PREFIX}Parapet", (0, 0, PAD_Z + HEIGHT + 0.32), (width, depth, 0.22), buildings, "ST_LightMetal")
-    make_cube(f"{PREFIX}Antenna", (0, 0, PAD_Z + HEIGHT + 1.1), (0.12, 0.12, 1.4), roof, "ST_LightMetal")
-    make_cube(f"{PREFIX}Beacon", (0, 0, PAD_Z + HEIGHT + 1.85), (0.18, 0.18, 0.18), roof, "ST_Yellow")
+    roof_z = PAD_Z + HEIGHT
+    make_cube(f"{PREFIX}Roof", (0, 0, roof_z + 0.12), (width * 0.92, depth * 0.92, 0.18), buildings, "ST_DarkMetal")
+    make_cube(f"{PREFIX}Parapet", (0, 0, roof_z + 0.32), (width, depth, 0.22), buildings, "ST_LightMetal")
+    make_roof_antenna(roof, roof_z)
 
     for index, (vx, vy) in enumerate(((-1.4, 1.2), (1.4, -1.0))):
-        make_cube(f"{PREFIX}HVAC_{index}", (vx, vy, PAD_Z + HEIGHT + 0.55), (1.4, 1.0, 0.65), roof, "ST_LightMetal")
-        make_cube(f"{PREFIX}Vent_{index}", (vx, vy, PAD_Z + HEIGHT + 0.95), (0.9, 0.9, 0.35), roof, "ST_DarkMetal")
+        make_cube(f"{PREFIX}HVAC_{index}", (vx, vy, roof_z + 0.55), (1.4, 1.0, 0.65), roof, "ST_LightMetal")
+        make_cube(f"{PREFIX}Vent_{index}", (vx, vy, roof_z + 0.95), (0.9, 0.9, 0.35), roof, "ST_DarkMetal")
 
 
 def make_studio() -> None:

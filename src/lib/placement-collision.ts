@@ -4,8 +4,8 @@ import {
   type PlacedObject,
 } from "@/lib/catalog";
 
-/** Minimum gap between placed asset footprints (meters). */
-export const PLACEMENT_COLLISION_PADDING = 0.25;
+/** Extra inset on footprint bounds. Keep 0 so adjacent 10×10 lots (centers 10 m apart) can touch edge-to-edge. */
+export const PLACEMENT_COLLISION_PADDING = 0;
 
 const DEFAULT_FOOTPRINT: CatalogFootprint = { width: 2, depth: 2 };
 
