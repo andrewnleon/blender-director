@@ -35,6 +35,8 @@ import {
   type CatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
+import { isConstructionComplete } from "@/lib/construction/driver";
+import type { ConstructionState } from "@/lib/construction/types";
 import { canPlaceAt } from "@/lib/placement-collision";
 
 type StageCanvasProps = {
@@ -53,6 +55,8 @@ type StageCanvasProps = {
   staticPreview?: boolean;
   cameraTarget?: [number, number, number];
   groundExtent?: number;
+  /** Live OpenClaw construction state keyed by catalog id. */
+  constructionByCatalogId?: Record<string, ConstructionState>;
 };
 
 const GRID_STEP = 1;
@@ -545,13 +549,21 @@ function AnimatedGlb({
   url,
   clip,
   playbackSpeed,
+  constructionProgress,
+  driveMode = "auto",
 }: {
   url: string;
   clip: string;
   playbackSpeed: number;
+  /** Scrub target 0–1 when driveMode is scrub. */
+  constructionProgress?: number;
+  driveMode?: "auto" | "scrub";
 }) {
+  const isScrubMode = driveMode === "scrub";
   const { scene, animations } = useGLTF(url);
-  const [constructDone, setConstructDone] = useState(false);
+  const [constructDone, setConstructDone] = useState(
+    () => isScrubMode && isConstructionComplete(constructionProgress ?? 0),
+  );
   const wrapRef = useRef<Group>(null);
   const actionsRef = useRef<AnimationAction[]>([]);
   const deferredRef = useRef<DeferredGrow[]>([]);
@@ -581,7 +593,9 @@ function AnimatedGlb({
   deferredRef.current = deferredGrowIns;
   const beaconPosition = useMemo(() => {
     const beacon =
-      root.getObjectByName("ST_Beacon") ?? root.getObjectByName("CC_Beacon");
+      root.getObjectByName("ST_Beacon") ??
+      root.getObjectByName("OC_Beacon") ??
+      root.getObjectByName("CC_Beacon");
     if (!beacon) return [6.4, 8.89, 2.95] as [number, number, number];
     const world = new Vector3();
     beacon.getWorldPosition(world);
@@ -601,15 +615,45 @@ function AnimatedGlb({
       action.setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
       action.time = 0;
-      action.play();
+      if (isScrubMode) {
+        action.paused = true;
+      } else {
+        action.play();
+      }
       return action;
     });
 
-    mixer.update(0);
-    collapseUntilGrow(deferredGrowIns, 0);
+    if (isScrubMode) {
+      const leader = actions.reduce((longest, action) =>
+        action.getClip().duration > longest.getClip().duration
+          ? action
+          : longest,
+      );
+      const targetTime =
+        (constructionProgress ?? 0) * leader.getClip().duration;
+      for (const action of actions) {
+        action.time = Math.min(targetTime, action.getClip().duration);
+      }
+      mixer.update(0);
+      collapseUntilGrow(deferredGrowIns, targetTime);
+      setConstructDone(isConstructionComplete(constructionProgress ?? 0));
+    } else {
+      mixer.update(0);
+      collapseUntilGrow(deferredGrowIns, 0);
+    }
+
     actionsRef.current = actions;
     if (wrap) {
       wrap.visible = true;
+    }
+
+    if (isScrubMode) {
+      return () => {
+        actionsRef.current = [];
+        for (const action of actions) {
+          action.stop();
+        }
+      };
     }
 
     const leader = actions.reduce((longest, action) =>
@@ -629,7 +673,35 @@ function AnimatedGlb({
         action.stop();
       }
     };
-  }, [mixer, clipsToPlay, deferredGrowIns]);
+  }, [
+    mixer,
+    clipsToPlay,
+    deferredGrowIns,
+    isScrubMode,
+    driveMode,
+    constructionProgress,
+    playbackSpeed,
+  ]);
+
+  useEffect(() => {
+    if (!isScrubMode || constructionProgress === undefined) {
+      return;
+    }
+    const actions = actionsRef.current;
+    if (actions.length === 0) {
+      return;
+    }
+    const leader = actions.reduce((longest, action) =>
+      action.getClip().duration > longest.getClip().duration ? action : longest,
+    );
+    const targetTime = constructionProgress * leader.getClip().duration;
+    for (const action of actions) {
+      action.time = Math.min(targetTime, action.getClip().duration);
+    }
+    mixer.update(0);
+    collapseUntilGrow(deferredRef.current, targetTime);
+    setConstructDone(isConstructionComplete(constructionProgress));
+  }, [constructionProgress, isScrubMode, mixer]);
 
   useFrame(() => {
     const actions = actionsRef.current;
@@ -652,15 +724,24 @@ function AssetPreview({
   item,
   staticPreview = false,
   playbackSpeed,
+  constructionState,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
   playbackSpeed: number;
+  constructionState?: ConstructionState;
 }) {
   if (item.kind === "glb" && item.url) {
     if (item.clip && !staticPreview) {
+      const driveMode = constructionState ? "scrub" : "auto";
       return (
-        <AnimatedGlb url={item.url} clip={item.clip} playbackSpeed={playbackSpeed} />
+        <AnimatedGlb
+          url={item.url}
+          clip={item.clip}
+          playbackSpeed={playbackSpeed}
+          driveMode={driveMode}
+          constructionProgress={constructionState?.progress}
+        />
       );
     }
     return <GlbModel url={item.url} />;
@@ -675,6 +756,7 @@ function PlacedAsset({
   staticPreview = false,
   selectable = true,
   playbackSpeed,
+  constructionState,
 }: {
   object: PlacedObject;
   selected: boolean;
@@ -682,6 +764,7 @@ function PlacedAsset({
   staticPreview?: boolean;
   selectable?: boolean;
   playbackSpeed: number;
+  constructionState?: ConstructionState;
 }) {
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
@@ -703,6 +786,7 @@ function PlacedAsset({
           item={item}
           staticPreview={staticPreview}
           playbackSpeed={playbackSpeed}
+          constructionState={constructionState}
         />
       </Suspense>
       {selectable && selected ? (
@@ -716,6 +800,7 @@ function PlacedAsset({
 }
 
 useGLTF.preload("/models/skyscraper.glb?v=42");
+useGLTF.preload("/models/operations-center.glb?v=5");
 
 export function StageCanvas({
   objects,
@@ -730,6 +815,7 @@ export function StageCanvas({
   staticPreview = false,
   cameraTarget = CAMERA_TARGET,
   groundExtent = 80,
+  constructionByCatalogId = {},
 }: StageCanvasProps) {
   const placingItem =
     !readOnly && placeCatalogId ? getCatalogItem(placeCatalogId) : null;
@@ -744,7 +830,7 @@ export function StageCanvas({
   return (
     <Canvas
       className={`absolute inset-0 ${placing ? "cursor-crosshair" : ""}`}
-      shadows
+      shadows="percentage"
       camera={{ position: [24, 18, 24], fov: 40, near: 0.1, far: 200 }}
       gl={{
         antialias: true,
@@ -781,6 +867,7 @@ export function StageCanvas({
           staticPreview={staticPreview}
           selectable={!readOnly}
           playbackSpeed={animationSettings.playbackSpeed}
+          constructionState={constructionByCatalogId[object.catalogId]}
         />
       ))}
       <OrbitControls

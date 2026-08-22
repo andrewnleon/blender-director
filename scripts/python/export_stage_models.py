@@ -18,7 +18,7 @@ OUT_DIR = os.path.join(ROOT, "public", "models")
 
 MAX_TRIS = 20_000
 
-SKIP_NAMES = {"ST_Sun", "ST_Fill", "ST_Camera", "ST_DirtGround"}
+SKIP_NAMES = {"ST_Sun", "ST_Fill", "ST_Camera", "ST_DirtGround", "OC_DirtGround"}
 
 CONSTRUCT_CLIP = "construct"
 
@@ -37,6 +37,20 @@ EXPORTS = [
         "export_animations": True,
 
         "mesh_prefix": "ST_",
+
+    },
+
+    {
+
+        "building_id": "operations-center",
+
+        "filename": "operations-center.glb",
+
+        "rest_frame": 1,
+
+        "export_animations": True,
+
+        "mesh_prefix": "OC_",
 
     },
 

@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useState } from "react";
+import type { OpenClawEvent } from "@/types/openclaw-event";
 import { canPlaceAt } from "@/lib/placement-collision";
+import { AgentStreamConnectButton } from "@/components/agent-stream-connect-button";
 import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
 import { CameraSettingsPanel } from "@/components/camera-settings-panel";
+import { useAgentStream } from "@/hooks/use-agent-stream";
+import { useAgentYard } from "@/hooks/use-agent-yard";
 import { StageCanvas } from "@/components/stage-canvas";
 import {
   CATALOG,
@@ -104,6 +108,13 @@ export function OpenClawYard() {
   const [hoverCanPlace, setHoverCanPlace] = useState<boolean | null>(null);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
   const [isSandboxMode, setIsSandboxMode] = useState(false);
+  const [lastStreamEvent, setLastStreamEvent] = useState<OpenClawEvent | null>(null);
+  const agentStream = useAgentStream({ onEvent: setLastStreamEvent });
+  const agentYard = useAgentYard({
+    streamEnabled: agentStream.isEnabled,
+    streamConnected: agentStream.status === "connected",
+    lastStreamEvent,
+  });
 
   useEffect(() => {
     setIsPaletteVisible(readPaletteVisibleFromSession());
@@ -184,6 +195,7 @@ export function OpenClawYard() {
         placeCatalogId={placing ? placeCatalogId : null}
         cameraSettings={cameraSettings}
         animationSettings={animationSettings}
+        constructionByCatalogId={agentYard.constructionByCatalogId}
         onPlace={handlePlace}
         onSelect={handleSelect}
         onPlacementHoverChange={setHoverCanPlace}
@@ -211,6 +223,11 @@ export function OpenClawYard() {
           >
             Sandbox mode
           </button>
+          <AgentStreamConnectButton
+            isEnabled={agentStream.isEnabled}
+            status={agentStream.status}
+            onToggle={agentStream.toggle}
+          />
           <AnimationSettingsPanel
             settings={animationSettings}
             onChange={setAnimationSettings}
