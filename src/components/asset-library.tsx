@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
+import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
 import { CameraSettingsPanel } from "@/components/camera-settings-panel";
 import { StageCanvas } from "@/components/stage-canvas";
 import { getCatalogItem } from "@/lib/catalog";
+import {
+  DEFAULT_ANIMATION_SETTINGS,
+  type AnimationSettings,
+} from "@/lib/animation-settings";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
 import {
   buildLibraryPlacements,
@@ -29,6 +34,9 @@ export function AssetLibrary() {
     ...DEFAULT_CAMERA_SETTINGS,
     viewDistance: getLibraryViewDistance(bounds),
   }));
+  const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
+    DEFAULT_ANIMATION_SETTINGS,
+  );
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#1b1e1c] text-zinc-100">
@@ -37,6 +45,7 @@ export function AssetLibrary() {
         selectedId={null}
         placeCatalogId={null}
         cameraSettings={cameraSettings}
+        animationSettings={animationSettings}
         onPlace={() => {}}
         onSelect={() => {}}
         readOnly
@@ -64,11 +73,17 @@ export function AssetLibrary() {
             Back to yard
           </Link>
         </div>
-        <CameraSettingsPanel
-          settings={cameraSettings}
-          onChange={setCameraSettings}
-          placementHint={`${libraryItems.length} assets · ${LIBRARY_COLUMN_COUNT}-col grid · ${LIBRARY_CELL_PADDING}u pad`}
-        />
+        <div className="flex items-start gap-2">
+          <AnimationSettingsPanel
+            settings={animationSettings}
+            onChange={setAnimationSettings}
+          />
+          <CameraSettingsPanel
+            settings={cameraSettings}
+            onChange={setCameraSettings}
+            placementHint={`${libraryItems.length} assets · ${LIBRARY_COLUMN_COUNT}-col grid · ${LIBRARY_CELL_PADDING}u pad`}
+          />
+        </div>
       </header>
 
       <aside

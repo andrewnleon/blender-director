@@ -676,18 +676,21 @@ class ConstructionDirector:
                 top_z=roof_top,
             )
 
-        crane_leave = self.frame
+        # Done — retract mast to rest height. Stay parked beside the pad.
+        crane_park = self.frame
+        rest_top = site.floor_ring_z(1)
         crane = bpy.data.objects.get("ST_Crane")
         if crane is not None:
             crane.location = crane_xy
-            crane.keyframe_insert("location", frame=crane_leave)
-            crane.location = (crane_xy[0] + 5.4, crane_xy[1] + 5.0, pad_z)
-            crane.keyframe_insert("location", frame=crane_leave + 22)
-            key_crane_mast(crane_leave + 22, roof_top, pad_z)
+            crane.keyframe_insert("location", frame=crane_park)
+            crane.keyframe_insert("location", frame=crane_park + 22)
+        key_crane_mast(crane_park, roof_top, pad_z)
+        key_crane_mast(crane_park + 22, rest_top, pad_z)
+        self.crane_top_z = rest_top
 
         # Phase 17 — commissioning
         self.mark("P17_Commission")
-        complete_start = crane_leave + 24
+        complete_start = crane_park + 24
         for obj in self.groups["activation"]:
             appear(obj, complete_start + 6)
 
@@ -696,7 +699,7 @@ class ConstructionDirector:
             clear_anim(obj)
             obj.data.energy = 0
             obj.data.keyframe_insert("energy", frame=1)
-            obj.data.keyframe_insert("energy", frame=crane_leave)
+            obj.data.keyframe_insert("energy", frame=crane_park)
             obj.data.energy = 220 + index * 40
             obj.data.keyframe_insert("energy", frame=lights_on + index * 2)
 

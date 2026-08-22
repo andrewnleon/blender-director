@@ -24,8 +24,10 @@ FOUNDATION_END = 4.2
 FOOTINGS_END = 5.2
 STACK_T0 = 6.0
 FLOOR_SPAN = 2.55
+WALL_GAP = 0.35
 WALL_SPAN = 0.50
-WINDOW_SPAN = 0.40
+WINDOW_GAP = 0.25
+WINDOW_SPAN = 0.35
 FLOOR_COUNT = 12
 
 JSON_CHUNK = 0x4E4F534A
@@ -87,11 +89,11 @@ def last_slab_end() -> float:
 
 
 def last_wall_end() -> float:
-    return last_slab_end() + 2.0 + FLOOR_COUNT * WALL_SPAN
+    return last_slab_end() + WALL_GAP + FLOOR_COUNT * WALL_SPAN
 
 
 def last_window_end() -> float:
-    return last_wall_end() + 0.6 + FLOOR_COUNT * WINDOW_SPAN
+    return last_wall_end() + WINDOW_GAP + FLOOR_COUNT * WINDOW_SPAN
 
 
 def desired_drop_end(floor: int, role: str) -> float:
@@ -102,9 +104,9 @@ def desired_drop_end(floor: int, role: str) -> float:
     if role == "roof":
         return last_window_end() + 1.4
     if role in WALL_ROLES:
-        return last_slab_end() + 2.0 + max(1, floor) * WALL_SPAN
+        return last_slab_end() + WALL_GAP + max(1, floor) * WALL_SPAN
     if role in WINDOW_ROLES:
-        return last_wall_end() + 0.6 + max(1, floor) * WINDOW_SPAN
+        return last_wall_end() + WINDOW_GAP + max(1, floor) * WINDOW_SPAN
     story = max(1, floor)
     return STACK_T0 + (story - 1) * FLOOR_SPAN + ROLE_OFFSET[role]
 
@@ -117,9 +119,9 @@ def remap_times(times: list[float], desired_end: float) -> list[float]:
     return [time * scale for time in times]
 
 
-# glTF Y-up: Blender SITE_CRANE (5.8, 5.0, 0.32) and scoot (11.2, 10.0, 0.32)
+# glTF Y-up: Blender SITE_CRANE (5.8, 5.0, 0.32). Stay parked; mast lowers.
 CRANE_PAD = (5.8, 0.32, -5.0)
-CRANE_SCOOT = (11.2, 0.32, -10.0)
+LOWER_SPAN = 2.2
 
 
 def height_rises(
@@ -150,12 +152,12 @@ def crane_time_anchors(
 ) -> list[tuple[float, float]]:
     """Hold short mast until floor 1, then one grow per restacked floor."""
     roof_t = last_window_end() + 1.4
-    scoot_t = roof_t + 2.2
+    lower_t = roof_t + LOWER_SPAN
     if not old_times:
         return [(0.0, 0.0)]
     anchors: list[tuple[float, float]] = [(old_times[0], 0.0)]
     if not rises:
-        anchors.append((old_times[-1], scoot_t))
+        anchors.append((old_times[-1], lower_t))
         return anchors
     anchors.append((rises[0][0], STACK_T0))
     for index, (_start, end, _height) in enumerate(rises):
@@ -164,7 +166,7 @@ def crane_time_anchors(
         else:
             anchors.append((end, roof_t))
     if anchors[-1][0] < old_times[-1]:
-        anchors.append((old_times[-1], scoot_t))
+        anchors.append((old_times[-1], lower_t))
     return anchors
 
 
@@ -311,6 +313,34 @@ def restack_glb(path: str = GLB_PATH) -> dict[str, float]:
             patched += 1
             drop_ends[name] = desired_end
 
+    # Walls/windows stay on the long Blender clock unless remapped.
+    # Their time accessors are per-node (or N/S window pairs), never shared with slabs.
+    remapped_skin: set[int] = set()
+    for animation in gltf.get("animations", []):
+        for channel in animation.get("channels", []):
+            node = nodes[channel["target"]["node"]]
+            name = node.get("name") or ""
+            role = stack_role(name)
+            if role not in SKIN_ROLES:
+                continue
+            sampler = animation["samplers"][channel["sampler"]]
+            input_index = sampler["input"]
+            if input_index in remapped_skin:
+                continue
+            times, time_offset, _ = _accessor_floats(gltf, blob, input_index)
+            if not times:
+                continue
+            floor = parse_floor_index(name) or 1
+            desired_end = desired_drop_end(floor, role)
+            new_times = remap_times(list(times), desired_end)
+            for index, time in enumerate(new_times):
+                times[index] = time
+            blob[time_offset : time_offset + len(times) * 4] = times.tobytes()
+            _write_accessor_minmax(gltf, input_index, times, 1)
+            remapped_skin.add(input_index)
+            patched += 1
+            drop_ends[name] = desired_end
+
     # Warp crane mast steps onto the same clock as each restacked floor.
     tower_times: list[float] = []
     tower_heights: list[float] = []
@@ -388,10 +418,9 @@ def restack_glb(path: str = GLB_PATH) -> dict[str, float]:
                 continue
             count = len(values) // 3
             for index in range(count):
-                pose = CRANE_SCOOT if index == count - 1 else CRANE_PAD
-                values[index * 3] = pose[0]
-                values[index * 3 + 1] = pose[1]
-                values[index * 3 + 2] = pose[2]
+                values[index * 3] = CRANE_PAD[0]
+                values[index * 3 + 1] = CRANE_PAD[1]
+                values[index * 3 + 2] = CRANE_PAD[2]
             blob[value_offset : value_offset + len(values) * 4] = values.tobytes()
             _write_accessor_minmax(gltf, sampler["output"], values, components)
 
@@ -474,6 +503,7 @@ def _self_check() -> None:
             assert desired_drop_end(floor - 1, "slab") < desired_drop_end(floor, "frame")
     assert desired_drop_end(0, "footing") < desired_drop_end(1, "frame")
     assert desired_drop_end(12, "slab") < desired_drop_end(1, "panel")
+    assert desired_drop_end(1, "panel") - desired_drop_end(12, "slab") < 1.0
     assert desired_drop_end(12, "panel") < desired_drop_end(1, "window")
     assert desired_drop_end(12, "window") < desired_drop_end(12, "roof")
     assert desired_drop_end(12, "slab") < desired_drop_end(12, "roof")
@@ -484,6 +514,7 @@ def _self_check() -> None:
     assert abs(warp_time(rises[0][0], anchors) - STACK_T0) < 0.05
     assert abs(warp_time(rises[0][1], anchors) - (STACK_T0 + FLOOR_SPAN)) < 0.05
     assert abs(warp_time(rises[10][1], anchors) - (STACK_T0 + 11 * FLOOR_SPAN)) < 0.05
+    assert abs(warp_time(old[-1], anchors) - (last_window_end() + 1.4 + LOWER_SPAN)) < 0.05
     print("SELF_CHECK_OK")
 
 

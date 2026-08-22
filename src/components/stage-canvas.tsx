@@ -23,6 +23,7 @@ import {
   type Group,
   type Object3D,
 } from "three";
+import { DEFAULT_ANIMATION_SETTINGS, type AnimationSettings } from "@/lib/animation-settings";
 import {
   getSceneFogDistances,
   PLACING_ROTATE_SPEED_RATIO,
@@ -41,6 +42,7 @@ type StageCanvasProps = {
   selectedId: string | null;
   placeCatalogId: string | null;
   cameraSettings: CameraSettings;
+  animationSettings?: AnimationSettings;
   onPlace: (position: [number, number, number]) => void;
   onSelect: (id: string | null) => void;
   /** True = valid snap cell, false = overlap, null = not hovering. */
@@ -516,7 +518,15 @@ function getDeferredGrowInsFromClips(
   return [...merged.values()];
 }
 
-function AnimatedGlb({ url, clip }: { url: string; clip: string }) {
+function AnimatedGlb({
+  url,
+  clip,
+  playbackSpeed,
+}: {
+  url: string;
+  clip: string;
+  playbackSpeed: number;
+}) {
   const { scene, animations } = useGLTF(url);
   const [constructDone, setConstructDone] = useState(false);
   const wrapRef = useRef<Group>(null);
@@ -533,6 +543,10 @@ function AnimatedGlb({ url, clip }: { url: string; clip: string }) {
     return clone;
   }, [scene]);
   const { mixer, clips } = useAnimations(animations, root);
+
+  useEffect(() => {
+    mixer.timeScale = playbackSpeed;
+  }, [mixer, playbackSpeed]);
   const clipsToPlay = useMemo(
     () => resolveConstructClips(clips, clip),
     [clip, clips],
@@ -557,6 +571,7 @@ function AnimatedGlb({ url, clip }: { url: string; clip: string }) {
       return;
     }
 
+    mixer.timeScale = playbackSpeed;
     const actions = clipsToPlay.map((activeClip) => {
       const action = mixer.clipAction(activeClip);
       action.reset();
@@ -613,13 +628,17 @@ function AnimatedGlb({ url, clip }: { url: string; clip: string }) {
 function AssetPreview({
   item,
   staticPreview = false,
+  playbackSpeed,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
+  playbackSpeed: number;
 }) {
   if (item.kind === "glb" && item.url) {
     if (item.clip && !staticPreview) {
-      return <AnimatedGlb url={item.url} clip={item.clip} />;
+      return (
+        <AnimatedGlb url={item.url} clip={item.clip} playbackSpeed={playbackSpeed} />
+      );
     }
     return <GlbModel url={item.url} />;
   }
@@ -632,12 +651,14 @@ function PlacedAsset({
   onSelect,
   staticPreview = false,
   selectable = true,
+  playbackSpeed,
 }: {
   object: PlacedObject;
   selected: boolean;
   onSelect: (id: string | null) => void;
   staticPreview?: boolean;
   selectable?: boolean;
+  playbackSpeed: number;
 }) {
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
@@ -655,7 +676,11 @@ function PlacedAsset({
       }
     >
       <Suspense fallback={null}>
-        <AssetPreview item={item} staticPreview={staticPreview} />
+        <AssetPreview
+          item={item}
+          staticPreview={staticPreview}
+          playbackSpeed={playbackSpeed}
+        />
       </Suspense>
       {selectable && selected ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
@@ -667,13 +692,14 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=19");
+useGLTF.preload("/models/skyscraper.glb?v=20");
 
 export function StageCanvas({
   objects,
   selectedId,
   placeCatalogId,
   cameraSettings,
+  animationSettings = DEFAULT_ANIMATION_SETTINGS,
   onPlace,
   onSelect,
   onPlacementHoverChange,
@@ -731,6 +757,7 @@ export function StageCanvas({
           onSelect={onSelect}
           staticPreview={staticPreview}
           selectable={!readOnly}
+          playbackSpeed={animationSettings.playbackSpeed}
         />
       ))}
       <OrbitControls

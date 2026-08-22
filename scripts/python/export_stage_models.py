@@ -108,7 +108,7 @@ def select_export_objects(mesh_prefix: str | None = None) -> list[str]:
 
             continue
 
-        # Keep crane empties so mast grow / hook / scoot stay parented in glTF.
+        # Keep crane empties so mast grow / hook / park stay parented in glTF.
 
         if obj.type == "EMPTY" and obj.children:
 

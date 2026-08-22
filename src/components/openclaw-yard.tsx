@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useId, useState } from "react";
 import { canPlaceAt } from "@/lib/placement-collision";
+import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
 import { CameraSettingsPanel } from "@/components/camera-settings-panel";
 import { StageCanvas } from "@/components/stage-canvas";
 import {
@@ -12,6 +13,10 @@ import {
   getCatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
+import {
+  DEFAULT_ANIMATION_SETTINGS,
+  type AnimationSettings,
+} from "@/lib/animation-settings";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
 
 function nextId(prefix: string) {
@@ -25,6 +30,9 @@ export function OpenClawYard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>(
     DEFAULT_CAMERA_SETTINGS,
+  );
+  const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
+    DEFAULT_ANIMATION_SETTINGS,
   );
   const [hoverCanPlace, setHoverCanPlace] = useState<boolean | null>(null);
 
@@ -84,6 +92,7 @@ export function OpenClawYard() {
         selectedId={selectedId}
         placeCatalogId={placing ? placeCatalogId : null}
         cameraSettings={cameraSettings}
+        animationSettings={animationSettings}
         onPlace={handlePlace}
         onSelect={handleSelect}
         onPlacementHoverChange={setHoverCanPlace}
@@ -97,18 +106,18 @@ export function OpenClawYard() {
           >
             OpenClaw Yard
           </h1>
-          <Link
-            href="/library"
-            className="mt-3 inline-flex rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/25 hover:bg-white/5"
-          >
-            Asset library grid
-          </Link>
         </div>
-        <CameraSettingsPanel
-          settings={cameraSettings}
-          onChange={setCameraSettings}
-          placementHint={placementHint}
-        />
+        <div className="flex items-start gap-2">
+          <AnimationSettingsPanel
+            settings={animationSettings}
+            onChange={setAnimationSettings}
+          />
+          <CameraSettingsPanel
+            settings={cameraSettings}
+            onChange={setCameraSettings}
+            placementHint={placementHint}
+          />
+        </div>
       </header>
 
       <aside
@@ -173,7 +182,13 @@ export function OpenClawYard() {
             })}
             </div>
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/library"
+              className="inline-flex rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/5"
+            >
+              Asset library grid
+            </Link>
             <button
               type="button"
               onClick={handleReset}
