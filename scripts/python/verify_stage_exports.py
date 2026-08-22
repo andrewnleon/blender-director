@@ -24,7 +24,7 @@ EXPECTED = {
 
     "skyscraper.glb": {
 
-        "max_bytes": 2_000_000,
+        "max_bytes": 2_200_000,
 
         "needs_construct": True,
 

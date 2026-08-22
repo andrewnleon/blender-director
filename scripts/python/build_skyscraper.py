@@ -13,12 +13,19 @@ PAD_HALF = 4.2
 FOOTPRINT = (6.0, 6.0)
 HEIGHT = 18.0
 FLOORS = 12
+# Typical RC frame: 3×4 column grid (12 posts), beams, then slabs.
+COLUMN_GRID = (3, 4)
+COLUMN_SIZE = 0.28
+BEAM_SIZE = 0.16
 
-# Vehicle rest poses around the 8.4 m pad — crane NE, mixer S, dozer SW.
+# Tower crane rest pose — NE of the 8.4 m pad. Mast grows in animation.
 SITE_CRANE = (5.8, 5.0, PAD_Z)
-SITE_MIXER = (4.8, -5.6, PAD_Z)
-SITE_DOZER = (-5.4, -4.8, PAD_Z)
 SITE_ROAD = (-11.0, -8.0, PAD_Z)
+CRANE_TOWER_REST_H = 5.4
+CRANE_TOWER_BASE_Z = 0.6
+CRANE_BOOM_REST_Z = 5.73
+CRANE_CAB_REST_Z = 5.7
+CRANE_HOOK_REST = (4.6, 0.0, -1.15)
 
 
 def floor_height() -> float:
@@ -35,6 +42,24 @@ def floor_slab_z(floor: int) -> float:
 
 def floor_ring_z(floor: int) -> float:
     return PAD_Z + floor_height() * floor
+
+
+def column_xy_list() -> list[tuple[float, float]]:
+    width, depth = FOOTPRINT
+    cols_x, cols_y = COLUMN_GRID
+    xs = [(-0.5 + (index / (cols_x - 1))) * width * 0.78 for index in range(cols_x)]
+    ys = [(-0.5 + (index / (cols_y - 1))) * depth * 0.78 for index in range(cols_y)]
+    return [(x, y) for x in xs for y in ys]
+
+
+def slab_material(floor: int) -> str:
+    if floor <= 1:
+        return "ST_SlabGround"
+    if floor == FLOORS:
+        return "ST_SlabRoof"
+    if floor <= FLOORS // 2:
+        return "ST_SlabMid"
+    return "ST_SlabUpper"
 
 
 def clear_scene() -> None:
@@ -90,12 +115,18 @@ def game_mat(name, color, roughness=0.55, metallic=0.0, transmission=0.0, emit=0
 
 def make_materials() -> None:
     game_mat("ST_Concrete", (0.56, 0.54, 0.49), roughness=0.85)
+    game_mat("ST_SlabGround", (0.78, 0.58, 0.32), roughness=0.88)
+    game_mat("ST_SlabMid", (0.42, 0.62, 0.48), roughness=0.86)
+    game_mat("ST_SlabUpper", (0.38, 0.52, 0.72), roughness=0.84)
+    game_mat("ST_SlabRoof", (0.72, 0.70, 0.66), roughness=0.82)
     game_mat("ST_Dirt", (0.34, 0.30, 0.24), roughness=0.95)
     game_mat("ST_SkyGlass", (0.42, 0.58, 0.72), roughness=0.12, metallic=0.05, transmission=0.35)
+    game_mat("ST_Wall", (0.14, 0.15, 0.17), roughness=0.58, metallic=0.12)
     game_mat("ST_Window", (0.04, 0.07, 0.10), roughness=0.12, metallic=0.0, transmission=0.55)
     game_mat("ST_LightMetal", (0.72, 0.74, 0.76), roughness=0.38, metallic=0.88)
     game_mat("ST_DarkMetal", (0.22, 0.23, 0.25), roughness=0.45, metallic=0.92)
     game_mat("ST_Steel", (0.18, 0.19, 0.21), roughness=0.4, metallic=0.78)
+    game_mat("ST_FrameBlack", (0.02, 0.02, 0.025), roughness=0.38, metallic=0.88)
     game_mat("ST_Yellow", (0.92, 0.78, 0.18), roughness=0.35, emit=0.35)
     game_mat("ST_ConstrYellow", (0.93, 0.74, 0.07), roughness=0.42, metallic=0.15)
     game_mat("ST_ConstrBlack", (0.12, 0.12, 0.14), roughness=0.55, metallic=0.25)
@@ -194,7 +225,7 @@ def window_row(prefix, width, depth, floor_index, cols, collection, outward_y):
     col_w = width / cols
     for column in range(cols):
         x = -width * 0.5 + col_w * (column + 0.5)
-        y = outward_y * (depth * 0.5 + 0.04)
+        y = outward_y * (depth * 0.5 + 0.12)
         add_box_mesh(bm, (x, y, 0.0), (col_w * 0.72, 0.06, floor_h * 0.62))
     return mesh_from_bm(f"{prefix}_F{floor_index}", bm, collection, "ST_Window", (0, 0, floor_center))
 
@@ -225,36 +256,43 @@ def make_site() -> None:
 def make_construction_meshes() -> None:
     construction = coll(f"{PREFIX}Construction")
     width, depth = FOOTPRINT
-    beam = 0.13
-    xs = [-width * 0.44 + i * (width * 0.88 / 4) for i in range(5)]
-    ys = [-depth * 0.44 + j * (depth * 0.88 / 4) for j in range(5)]
+    beam = BEAM_SIZE
+    posts = column_xy_list()
+    xs = sorted({x for x, _y in posts})
+    ys = sorted({y for _x, y in posts})
     floor_h = floor_height()
 
     foot_bm = bmesh.new()
-    for dx in (-0.42, 0.0, 0.42):
-        for dy in (-0.42, 0.0, 0.42):
-            for x in (-width * 0.35 + dx * width, width * 0.35 + dx * width):
-                for y in (-depth * 0.35 + dy * depth, depth * 0.35 + dy * depth):
-                    add_box_mesh(foot_bm, (x, y, 0.55), (0.55, 0.55, 0.46))
-                    add_box_mesh(foot_bm, (x, y, 0.82), (0.38, 0.38, 0.18))
+    for x, y in posts:
+        add_box_mesh(foot_bm, (x, y, 0.42), (0.62, 0.62, 0.22))
+        add_box_mesh(foot_bm, (x, y, 0.58), (0.40, 0.40, 0.14))
     mesh_from_bm(f"{PREFIX}Footings", foot_bm, construction, "ST_Concrete")
 
     for floor in range(1, FLOORS + 1):
         floor_center = floor_center_z(floor)
         ring_local = floor_h * 0.5
-        frame_bm = bmesh.new()
+
+        column_bm = bmesh.new()
+        for x, y in posts:
+            add_box_mesh(column_bm, (x, y, 0.0), (COLUMN_SIZE, COLUMN_SIZE, floor_h * 0.94))
+        mesh_from_bm(
+            f"{PREFIX}Columns_{floor}",
+            column_bm,
+            construction,
+            "ST_Concrete",
+            (0, 0, floor_center),
+        )
+
+        beam_bm = bmesh.new()
         for y in ys:
-            add_box_mesh(frame_bm, (0, y, ring_local), (width + beam, beam, beam))
+            add_box_mesh(beam_bm, (0, y, ring_local), (width * 0.80, beam, beam))
         for x in xs:
-            add_box_mesh(frame_bm, (x, 0, ring_local), (beam, depth + beam, beam))
-        for x in (xs[0], xs[-1]):
-            for y in (ys[0], ys[-1]):
-                add_box_mesh(frame_bm, (x, y, 0.0), (beam, beam, floor_h * 0.92))
+            add_box_mesh(beam_bm, (x, 0, ring_local), (beam, depth * 0.80, beam))
         mesh_from_bm(
             f"{PREFIX}FrameFloor_{floor}",
-            frame_bm,
+            beam_bm,
             construction,
-            "ST_Steel",
+            "ST_FrameBlack",
             (0, 0, floor_center),
         )
 
@@ -269,9 +307,9 @@ def make_construction_meshes() -> None:
         make_cube(
             f"{PREFIX}FloorSlab_{floor}",
             (0, 0, slab_z),
-            (width * 0.86, depth * 0.86, 0.14),
+            (width * 0.84, depth * 0.84, 0.12),
             construction,
-            "ST_Concrete",
+            slab_material(floor),
         )
 
 
@@ -291,63 +329,35 @@ def make_crane() -> tuple:
     base = make_cube(f"{PREFIX}CraneBase", (0, 0, 0.35), (1.6, 1.6, 0.5), construction, "ST_ConstrYellow")
     track_l = make_cube(f"{PREFIX}CraneTrackL", (0, 0.7, 0.16), (1.9, 0.35, 0.28), construction, "ST_ConstrBlack")
     track_r = make_cube(f"{PREFIX}CraneTrackR", (0, -0.7, 0.16), (1.9, 0.35, 0.28), construction, "ST_ConstrBlack")
-    tower = make_cube(f"{PREFIX}CraneTower", (0, 0, 3.3), (0.38, 0.38, 5.4), construction, "ST_ConstrYellow")
-    cab = make_cube(f"{PREFIX}CraneCab", (0.45, 0, 5.7), (0.7, 0.7, 0.7), construction, "ST_ConstrCab")
+    tower = make_cube(
+        f"{PREFIX}CraneTower",
+        (0, 0, CRANE_TOWER_BASE_Z + CRANE_TOWER_REST_H * 0.5),
+        (0.38, 0.38, CRANE_TOWER_REST_H),
+        construction,
+        "ST_ConstrYellow",
+    )
+    cab = make_cube(f"{PREFIX}CraneCab", (0.45, 0, CRANE_CAB_REST_Z), (0.7, 0.7, 0.7), construction, "ST_ConstrCab")
     _parent_parts(root, (base, track_l, track_r, tower, cab))
 
     boom_root = bpy.data.objects.new(f"{PREFIX}CraneBoomPivot", None)
     boom_root.empty_display_size = 0.8
     boom_root.parent = root
-    boom_root.location = (0.0, 0.0, 5.73)
+    boom_root.location = (0.0, 0.0, CRANE_BOOM_REST_Z)
     link(boom_root, construction)
 
     boom = make_cube(f"{PREFIX}CraneBoom", (2.4, 0, 0), (5.2, 0.22, 0.22), construction, "ST_ConstrYellow")
     boom2 = make_cube(f"{PREFIX}CraneBoom2", (4.6, 0, -0.15), (0.18, 0.18, 1.1), construction, "ST_ConstrYellow")
     cable = make_cube(f"{PREFIX}CraneCable", (4.6, 0, -0.65), (0.04, 0.04, 1.0), construction, "ST_ConstrBlack")
-    hook = make_cube(f"{PREFIX}CraneHook", (4.6, 0, -1.15), (0.16, 0.16, 0.35), construction, "ST_ConstrBlack")
+    hook = make_cube(
+        f"{PREFIX}CraneHook",
+        CRANE_HOOK_REST,
+        (0.16, 0.16, 0.35),
+        construction,
+        "ST_ConstrBlack",
+    )
     payload = make_cube(f"{PREFIX}CranePayload", (4.6, 0, -1.65), (1.1, 0.55, 0.22), construction, "ST_Steel")
     _parent_parts(boom_root, (boom, boom2, cable, hook, payload))
     return root, boom_root
-
-
-def make_mixer():
-    construction = coll(f"{PREFIX}Construction")
-    root = bpy.data.objects.new(f"{PREFIX}Mixer", None)
-    root.empty_display_size = 1.0
-    root.location = SITE_MIXER
-    root.rotation_euler.z = math.radians(22)
-    link(root, construction)
-    parts = [
-        make_cube(f"{PREFIX}MixerCab", (-1.15, 0, 0.85), (1.1, 1.15, 1.1), construction, "ST_ConstrCab"),
-        make_cube(f"{PREFIX}MixerBed", (0.7, 0, 0.7), (2.4, 1.2, 0.45), construction, "ST_ConstrYellow"),
-        make_cylinder(
-            f"{PREFIX}MixerDrum", (0.85, 0, 1.25), 0.55, 2.0, construction, "ST_ConstrYellow", 12, (0, math.radians(90), 0)
-        ),
-        make_cube(f"{PREFIX}MixerWheelFL", (-1.2, 0.62, 0.28), (0.45, 0.22, 0.45), construction, "ST_ConstrBlack"),
-        make_cube(f"{PREFIX}MixerWheelFR", (-1.2, -0.62, 0.28), (0.45, 0.22, 0.45), construction, "ST_ConstrBlack"),
-        make_cube(f"{PREFIX}MixerWheelRL", (1.15, 0.62, 0.28), (0.45, 0.22, 0.45), construction, "ST_ConstrBlack"),
-        make_cube(f"{PREFIX}MixerWheelRR", (1.15, -0.62, 0.28), (0.45, 0.22, 0.45), construction, "ST_ConstrBlack"),
-    ]
-    _parent_parts(root, parts)
-    return root
-
-
-def make_dozer():
-    construction = coll(f"{PREFIX}Construction")
-    root = bpy.data.objects.new(f"{PREFIX}Dozer", None)
-    root.empty_display_size = 1.2
-    root.location = SITE_DOZER
-    root.rotation_euler.z = math.radians(-24)
-    link(root, construction)
-    parts = [
-        make_cube(f"{PREFIX}DozerBody", (0, 0.1, 0.55), (2.1, 1.15, 0.7), construction, "ST_ConstrYellow"),
-        make_cube(f"{PREFIX}DozerCab", (-0.35, 0.1, 1.15), (0.9, 1.0, 0.7), construction, "ST_ConstrCab"),
-        make_cube(f"{PREFIX}DozerBlade", (1.25, 0.1, 0.55), (0.16, 1.7, 0.95), construction, "ST_ConstrYellow"),
-        make_cube(f"{PREFIX}DozerTrackL", (0.05, 0.72, 0.22), (2.0, 0.32, 0.4), construction, "ST_ConstrBlack"),
-        make_cube(f"{PREFIX}DozerTrackR", (0.05, -0.52, 0.22), (2.0, 0.32, 0.4), construction, "ST_ConstrBlack"),
-    ]
-    _parent_parts(root, parts)
-    return root
 
 
 def make_tower() -> None:
@@ -356,7 +366,7 @@ def make_tower() -> None:
     width, depth = FOOTPRINT
     floor_h = floor_height()
     cols = max(3, int(width))
-    core_w = width * 0.32
+    core_w = 0.36
 
     for floor in range(1, FLOORS + 1):
         core_z = floor_center_z(floor)
@@ -384,28 +394,28 @@ def make_tower() -> None:
             (0, -(depth * 0.5 + panel_th * 0.5), band_z),
             (width, panel_th, floor_h * 0.92),
             buildings,
-            "ST_SkyGlass",
+            "ST_Wall",
         )
         make_cube(
             f"{PREFIX}CWPanel_{floor}_N",
             (0, depth * 0.5 + panel_th * 0.5, band_z),
             (width, panel_th, floor_h * 0.92),
             buildings,
-            "ST_SkyGlass",
+            "ST_Wall",
         )
         make_cube(
             f"{PREFIX}CWPanel_{floor}_E",
             (width * 0.5 + panel_th * 0.5, 0, band_z),
             (panel_th, depth, floor_h * 0.92),
             buildings,
-            "ST_SkyGlass",
+            "ST_Wall",
         )
         make_cube(
             f"{PREFIX}CWPanel_{floor}_W",
             (-(width * 0.5 + panel_th * 0.5), 0, band_z),
             (panel_th, depth, floor_h * 0.92),
             buildings,
-            "ST_SkyGlass",
+            "ST_Wall",
         )
         window_row("ST_Windows", width, depth, floor, cols, buildings, outward_y=-1)
         window_row("ST_N_Windows", width, depth, floor, cols, buildings, outward_y=1)
@@ -453,8 +463,6 @@ def build_skyscraper() -> dict[str, int]:
     make_site()
     make_construction_meshes()
     make_crane()
-    make_mixer()
-    make_dozer()
     make_tower()
     make_studio()
 

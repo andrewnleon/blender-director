@@ -429,10 +429,12 @@ function getDeferredGrowIns(clip: AnimationClip, root: Object3D): DeferredGrow[]
       continue;
     }
 
-    let growStart = times[0];
+    // Hide while still collapsed. First tiny key is t≈0 — using that
+    // made every floor/window speckle the sky as soon as the clip started.
+    let growStart = times[lastIndex];
     for (let index = 0; index < times.length; index += 1) {
       const [x, y, z] = sampleScaleAt(values, index);
-      if (Math.min(x, y, z) < GROW_IN_THRESHOLD) {
+      if (Math.min(x, y, z) >= GROW_IN_THRESHOLD) {
         growStart = times[index];
         break;
       }
@@ -665,7 +667,7 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=11");
+useGLTF.preload("/models/skyscraper.glb?v=19");
 
 export function StageCanvas({
   objects,

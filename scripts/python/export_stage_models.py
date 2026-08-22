@@ -100,15 +100,23 @@ def select_export_objects(mesh_prefix: str | None = None) -> list[str]:
 
     for obj in bpy.data.objects:
 
-        if obj.type != "MESH":
-
-            continue
-
         if obj.name in SKIP_NAMES:
 
             continue
 
         if mesh_prefix and not obj.name.startswith(mesh_prefix):
+
+            continue
+
+        # Keep crane empties so mast grow / hook / scoot stay parented in glTF.
+
+        if obj.type == "EMPTY" and obj.children:
+
+            names.append(obj.name)
+
+            continue
+
+        if obj.type != "MESH":
 
             continue
 
@@ -212,7 +220,7 @@ def export_building(
 
     *,
 
-    rest_frame: int | None = None,
+    rest_frame: int | str | None = None,
 
     mesh_prefix: str | None = None,
 
@@ -236,9 +244,13 @@ def export_building(
 
     scene = bpy.context.scene
 
-    if rest_frame is not None:
+    if rest_frame == "end" or (rest_frame is None and export_animations):
 
-        scene.frame_set(rest_frame)
+        scene.frame_set(scene.frame_end)
+
+    elif rest_frame is not None:
+
+        scene.frame_set(int(rest_frame))
 
 
 

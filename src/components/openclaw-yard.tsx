@@ -91,17 +91,12 @@ export function OpenClawYard() {
 
       <header className="pointer-events-none absolute top-0 left-0 right-0 flex items-start justify-between gap-4 p-4">
         <div className="pointer-events-auto max-w-md rounded-lg border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">
+          <h1
+            id={titleId}
+            className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80"
+          >
             OpenClaw Yard
-          </p>
-          <h1 id={titleId} className="mt-1 text-lg font-semibold tracking-tight">
-            Developer agent staging ground
           </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Pick the skyscraper from the palette, hover the grid to preview
-            placement, then click to snap. Only one tower per yard. Dropping it
-            plays the construction sequence once. No combat — assets and testing only.
-          </p>
           <Link
             href="/library"
             className="mt-3 inline-flex rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/25 hover:bg-white/5"

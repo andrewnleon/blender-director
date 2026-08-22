@@ -1,10 +1,8 @@
 {
   "mcpServers": {
     "blender": {
-      "command": "cmd",
+      "command": "/home/linuxbrew/.linuxbrew/bin/uvx",
       "args": [
-        "/c",
-        "uvx",
         "--python",
         "3.11",
         "blender-mcp"
@@ -13,7 +11,8 @@
         "BLENDER_HOST": "localhost",
         "BLENDER_PORT": "9876",
         "UV_PYTHON_PREFERENCE": "only-managed",
-        "DISABLE_TELEMETRY": "true"
+        "DISABLE_TELEMETRY": "true",
+        "PATH": "/home/linuxbrew/.linuxbrew/bin:/home/leon/.local/bin:/usr/bin:/bin"
       }
     }
   }

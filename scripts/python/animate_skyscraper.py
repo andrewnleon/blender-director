@@ -12,17 +12,21 @@ FPS = 24
 DROP_HOLD = 6
 BOLT_HOLD = 4
 CURE_HOLD = 8
+# C&C grow — tiny at spawn so the yard click is an empty pad, not an installed frame.
+GROW_START_SCALE = 0.04
 
 # Boom sweep angles — crane rotates over the pad.
 BOOM_ANGLES = (-158, -176, -108, -172, -128, -110, -168, -136, -112, -174, -150, -132)
 
 LIFT_DURATIONS = {
     "light": 16,
-    "steel": 22,
-    "deck": 18,
-    "panel": 14,
-    "roof": 20,
-    "core": 18,
+    "steel": 20,
+    "column": 18,
+    "deck": 16,
+    "slab": 16,
+    "panel": 12,
+    "roof": 18,
+    "core": 16,
 }
 
 
@@ -67,24 +71,34 @@ def appear(obj, frame_on, frame_off=None):
 def pop_in(obj, frame_on: int) -> None:
     """Snap-in at fixed height — used for windows after steel inspection."""
     sc = obj.scale.copy()
-    appear(obj, frame_on)
-    pre = max(1, frame_on - 1)
+    loc = obj.location.copy()
+    # Keep location seated. hide_viewport bakes glTF translation to origin.
+    obj.location = loc
+    obj.keyframe_insert("location", frame=1)
     obj.scale = (sc.x * 0.04, sc.y * 0.04, sc.z * 0.04)
+    obj.keyframe_insert("scale", frame=1)
+    pre = max(1, frame_on - 1)
     obj.keyframe_insert("scale", frame=pre)
-    obj.keyframe_insert("scale", frame=frame_on)
     obj.scale = sc
     obj.keyframe_insert("scale", frame=frame_on + 2)
+    obj.keyframe_insert("location", frame=frame_on + 2)
 
 
 def pour_spread(obj, frame_start: int, duration: int = 18) -> int:
     """Concrete pour at fixed elevation — spreads in plan, not vertical grow."""
     sc = obj.scale.copy()
-    appear(obj, frame_start)
+    loc = obj.location.copy()
+    done = frame_start + duration + CURE_HOLD
+    obj.location = loc
+    obj.keyframe_insert("location", frame=1)
+    obj.keyframe_insert("location", frame=done)
     obj.scale = (sc.x * 0.05, sc.y * 0.05, sc.z)
-    obj.keyframe_insert("scale", frame=frame_start)
+    obj.keyframe_insert("scale", frame=1)
+    pre = max(1, frame_start - 1)
+    obj.keyframe_insert("scale", frame=pre)
     obj.scale = sc
     obj.keyframe_insert("scale", frame=frame_start + duration)
-    return frame_start + duration + CURE_HOLD
+    return done
 
 
 def show_tree(root, frame_on):
@@ -161,6 +175,7 @@ def classify():
     foundation = []
     footings = []
     core_lifts = []
+    columns = []
     frame_floors = []
     decks = []
     slabs = []
@@ -195,6 +210,8 @@ def classify():
             footings.append(obj)
         elif name.startswith("ST_CoreLift_"):
             core_lifts.append(obj)
+        elif name.startswith("ST_Columns_"):
+            columns.append(obj)
         elif name.startswith("ST_FrameFloor_"):
             frame_floors.append(obj)
         elif name.startswith("ST_Deck_"):
@@ -221,13 +238,18 @@ def classify():
             systems.append(obj)
         elif name == "ST_Beacon":
             activation.append(obj)
-        elif name.startswith("ST_Crane") or name.startswith("ST_Mixer") or name.startswith("ST_Dozer"):
+        elif name.startswith("ST_Crane"):
             equipment.append(obj)
 
-    frame_floors.sort(key=lambda item: item.name)
-    decks.sort(key=lambda item: item.name)
-    slabs.sort(key=lambda item: item.name)
-    core_lifts.sort(key=lambda item: item.name)
+    def _floor_sort(obj) -> int:
+        suffix = obj.name.rsplit("_", 1)[-1]
+        return int(suffix) if suffix.isdigit() else 0
+
+    columns.sort(key=_floor_sort)
+    frame_floors.sort(key=_floor_sort)
+    decks.sort(key=_floor_sort)
+    slabs.sort(key=_floor_sort)
+    core_lifts.sort(key=_floor_sort)
 
     curtain_floors = [curtain_by_floor[floor] for floor in sorted(curtain_by_floor)]
     window_floors = [windows_by_floor[floor] for floor in sorted(windows_by_floor)]
@@ -239,6 +261,7 @@ def classify():
         "foundation": foundation,
         "footings": footings,
         "core_lifts": core_lifts,
+        "columns": columns,
         "frame_floors": frame_floors,
         "decks": decks,
         "slabs": slabs,
@@ -251,10 +274,69 @@ def classify():
     }
 
 
-def _animate_crane_rig(frame_start: int, duration: int, boom_deg: float, hook_high: float, hook_low: float):
+def crane_pose_for_top(world_top_z: float, pad_z: float) -> tuple[float, float, float, float]:
+    """Mast scale/center, jib local Z, hook local Z so the hook sits on the roof."""
+    import build_skyscraper as site
+
+    jib_clearance = 2.4
+    hook_above = 0.35
+    jib_z = max(3.2, world_top_z - pad_z + jib_clearance)
+    tower_h = max(2.6, jib_z - site.CRANE_TOWER_BASE_Z + 0.2)
+    tower_center_z = site.CRANE_TOWER_BASE_Z + tower_h * 0.5
+    tower_scale_z = tower_h / site.CRANE_TOWER_REST_H
+    hook_z = world_top_z + hook_above - pad_z - jib_z
+    return tower_scale_z, tower_center_z, jib_z, hook_z
+
+
+def key_crane_mast(frame: int, world_top_z: float, pad_z: float) -> float:
+    """Grow the yellow mast and ride the jib up. Returns hook local Z on that roof."""
+    import build_skyscraper as site
+
+    tower_scale_z, tower_center_z, jib_z, hook_z = crane_pose_for_top(world_top_z, pad_z)
+    tower = bpy.data.objects.get("ST_CraneTower")
+    cab = bpy.data.objects.get("ST_CraneCab")
     boom = bpy.data.objects.get("ST_CraneBoomPivot")
+    if tower is not None:
+        tower.scale = (1.0, 1.0, tower_scale_z)
+        tower.location = (0.0, 0.0, tower_center_z)
+        tower.keyframe_insert("scale", frame=frame)
+        tower.keyframe_insert("location", frame=frame)
+    if cab is not None:
+        cab.location = (0.45, 0.0, jib_z)
+        cab.keyframe_insert("location", frame=frame)
+    if boom is not None:
+        boom.location = (0.0, 0.0, jib_z)
+        boom.keyframe_insert("location", frame=frame)
+    key_crane_hook(frame, hook_z, site.CRANE_HOOK_REST)
+    return hook_z
+
+
+def key_crane_hook(frame: int, hook_z: float, hook_rest: tuple[float, float, float]) -> None:
     hook = bpy.data.objects.get("ST_CraneHook")
+    cable = bpy.data.objects.get("ST_CraneCable")
     payload = bpy.data.objects.get("ST_CranePayload")
+    hook_x, hook_y, _hook_rest_z = hook_rest
+    if hook is not None:
+        hook.location = (hook_x, hook_y, hook_z)
+        hook.keyframe_insert("location", frame=frame)
+    cable_rest_h = 1.0
+    if cable is not None:
+        length = max(0.4, abs(hook_z))
+        cable.scale = (1.0, 1.0, length / cable_rest_h)
+        cable.location = (hook_x, hook_y, hook_z * 0.5)
+        cable.keyframe_insert("scale", frame=frame)
+        cable.keyframe_insert("location", frame=frame)
+    if payload is not None:
+        payload.location = (hook_x, hook_y, hook_z - 0.5)
+        payload.keyframe_insert("location", frame=frame)
+
+
+def _animate_crane_rig(frame_start: int, duration: int, boom_deg: float, hook_high: float, hook_low: float):
+    import build_skyscraper as site
+
+    boom = bpy.data.objects.get("ST_CraneBoomPivot")
+    payload = bpy.data.objects.get("ST_CranePayload")
+    hook_rest = site.CRANE_HOOK_REST
 
     f_pick = frame_start
     f_swing = frame_start + max(4, round(duration * 0.24))
@@ -262,10 +344,13 @@ def _animate_crane_rig(frame_start: int, duration: int, boom_deg: float, hook_hi
     f_place = frame_start + duration
 
     if payload is not None:
-        hide_at(payload, f_pick - 1, True)
-        hide_at(payload, f_pick, False)
-        hide_at(payload, f_place - 1, False)
-        hide_at(payload, f_place, True)
+        payload.scale = (0.04, 0.04, 0.04)
+        payload.keyframe_insert("scale", frame=max(1, f_pick - 1))
+        payload.scale = (1.0, 1.0, 1.0)
+        payload.keyframe_insert("scale", frame=f_pick)
+        payload.keyframe_insert("scale", frame=f_place - 1)
+        payload.scale = (0.04, 0.04, 0.04)
+        payload.keyframe_insert("scale", frame=f_place)
 
     if boom is not None:
         boom.rotation_euler = (0.0, 0.0, math.radians(boom_deg - 12))
@@ -276,14 +361,10 @@ def _animate_crane_rig(frame_start: int, duration: int, boom_deg: float, hook_hi
         boom.keyframe_insert("rotation_euler", frame=f_lower)
         boom.keyframe_insert("rotation_euler", frame=f_place)
 
-    if hook is not None:
-        hook.location.z = hook_high
-        hook.keyframe_insert("location", frame=f_pick)
-        hook.keyframe_insert("location", frame=f_swing)
-        hook.location.z = hook_low
-        hook.keyframe_insert("location", frame=f_lower)
-        hook.location.z = hook_high
-        hook.keyframe_insert("location", frame=f_place)
+    key_crane_hook(f_pick, hook_high, hook_rest)
+    key_crane_hook(f_swing, hook_high, hook_rest)
+    key_crane_hook(f_lower, hook_low, hook_rest)
+    key_crane_hook(f_place, hook_high, hook_rest)
 
     return f_place
 
@@ -297,48 +378,59 @@ def crane_lift(
     hook_high: float = -1.0,
     hook_low: float = -2.4,
     floor_index: int | None = None,
+    top_z: float | None = None,
 ) -> int:
-    """Drop cargo onto the stack — hover just above the floor below, then seat in place."""
-    final_loc = piece.location.copy()
+    """C&C scale-up from the seated pad. Never explode from the sky.
 
-    f_swing = frame_start + max(4, round(duration * 0.24))
-    f_lower = max(f_swing + 4, frame_start + round(duration * 0.58))
+    Tiny scale at frame 1 so spawn / glTF bind pose has no installed frame.
+    Do not key hide_viewport on exported meshes — the baker records hidden
+    transforms as origin. Hook hangs on the current roof.
+    """
+    import build_skyscraper as site
+
+    pad_z = site.PAD_Z
+    if top_z is None:
+        top_z = site.floor_ring_z(floor_index) if floor_index is not None else pad_z + 0.9
+    _tower_s, _tower_z, _jib_z, hook_on_roof = crane_pose_for_top(top_z, pad_z)
+    del hook_high, hook_low
+    hook_high = hook_on_roof
+    hook_low = hook_on_roof - 0.45
+
+    final_loc = piece.location.copy()
+    rest_scale = piece.scale.copy()
+    height = max(float(piece.dimensions.z), 0.08)
+    tiny = (
+        rest_scale.x * GROW_START_SCALE,
+        rest_scale.y * GROW_START_SCALE,
+        rest_scale.z * GROW_START_SCALE,
+    )
+
     f_place = frame_start + duration
     f_bolt = f_place + BOLT_HOLD
+    pre = max(1, frame_start - 1)
+    grow_from = Vector((final_loc.x, final_loc.y, final_loc.z - height * 0.48))
 
-    base_top = stack_top_z(floor_index) if floor_index is not None else final_loc.z - 0.5
-    hover_z = max(final_loc.z + 0.35, base_top + 1.4)
-    hover = Vector((final_loc.x, final_loc.y, hover_z))
-
-    hide_at(piece, 1, True)
     piece.location = final_loc
+    piece.scale = tiny
     piece.keyframe_insert("location", frame=1)
-    if f_lower > 1:
-        hide_at(piece, f_lower - 1, True)
-    hide_at(piece, f_lower, False)
+    piece.keyframe_insert("scale", frame=1)
+    piece.keyframe_insert("location", frame=pre)
+    piece.keyframe_insert("scale", frame=pre)
 
-    piece.location = hover
-    piece.keyframe_insert("location", frame=f_lower)
-    piece.keyframe_insert("location", frame=f_place - 1)
+    piece.location = grow_from
+    piece.scale = tiny
+    piece.keyframe_insert("location", frame=frame_start)
+    piece.keyframe_insert("scale", frame=frame_start)
+
     piece.location = final_loc
+    piece.scale = rest_scale
     piece.keyframe_insert("location", frame=f_place)
+    piece.keyframe_insert("scale", frame=f_place)
     piece.keyframe_insert("location", frame=f_bolt)
+    piece.keyframe_insert("scale", frame=f_bolt)
 
     _animate_crane_rig(frame_start, duration, boom_deg, hook_high, hook_low)
     return f_bolt + DROP_HOLD
-
-
-def hook_depth_for_floor(floor_index: int) -> float:
-    return -1.5 - floor_index * 0.36
-
-
-def stack_top_z(floor_index: int) -> float:
-    """Elevation of the finished floor below this lift."""
-    import build_skyscraper as site
-
-    if floor_index <= 1:
-        return site.PAD_Z
-    return site.floor_ring_z(floor_index - 1)
 
 
 class ConstructionDirector:
@@ -349,6 +441,7 @@ class ConstructionDirector:
         self.frame = 1
         self.boom_index = 0
         self.markers: list[PhaseMarker] = []
+        self.crane_top_z = 0.0
 
     def mark(self, label: str) -> None:
         self.markers.append(PhaseMarker(label, self.frame))
@@ -360,6 +453,24 @@ class ConstructionDirector:
 
     def advance(self, frames: int) -> None:
         self.frame += frames
+
+    def raise_crane(self, top_z: float) -> None:
+        """Grow the mast so the hook rides the new roof."""
+        import build_skyscraper as site
+
+        pad_z = site.PAD_Z
+        if self.crane_top_z <= 0.0:
+            key_crane_mast(1, top_z, pad_z)
+            self.crane_top_z = top_z
+            return
+        if abs(top_z - self.crane_top_z) < 0.05:
+            return
+        hold = max(1, self.frame)
+        key_crane_mast(hold, self.crane_top_z, pad_z)
+        grow_end = hold + 10
+        key_crane_mast(grow_end, top_z, pad_z)
+        self.crane_top_z = top_z
+        self.frame = grow_end
 
     def vehicle_path(self, root_name: str, keyframes: list[tuple[int, tuple[float, float, float]]]) -> None:
         root = bpy.data.objects.get(root_name)
@@ -373,11 +484,14 @@ class ConstructionDirector:
     def run(self) -> int:
         import build_skyscraper as site
 
-        road = site.SITE_ROAD
         crane_xy = site.SITE_CRANE
-        mixer_xy = site.SITE_MIXER
-        dozer_xy = site.SITE_DOZER
         pad_z = site.PAD_Z
+        self.crane_top_z = site.floor_ring_z(1)
+        key_crane_mast(1, self.crane_top_z, pad_z)
+        crane = bpy.data.objects.get("ST_Crane")
+        if crane is not None:
+            crane.location = crane_xy
+            crane.keyframe_insert("location", frame=1)
 
         # Phase 0 — survey & site prep
         self.mark("P00_Survey")
@@ -394,19 +508,9 @@ class ConstructionDirector:
                 appear(obj, self.frame + 8)
         self.advance(36)
 
-        # Phase 1 — earthwork
+        # Phase 1 — earthwork (no earth movers — crane only)
         self.mark("P01_Earthwork")
-        show_tree(bpy.data.objects.get("ST_Dozer"), self.frame)
-        self.vehicle_path(
-            "ST_Dozer",
-            [
-                (self.frame, (road[0], road[1], pad_z)),
-                (self.frame + 14, (dozer_xy[0] - 0.6, dozer_xy[1], pad_z)),
-                (self.frame + 28, (dozer_xy[0] + 1.0, dozer_xy[1] + 0.8, pad_z)),
-                (self.frame + 42, (dozer_xy[0], dozer_xy[1], pad_z)),
-            ],
-        )
-        self.advance(48)
+        self.advance(16)
 
         # Phase 2 — excavation
         self.mark("P02_Excavation")
@@ -422,22 +526,13 @@ class ConstructionDirector:
 
         # Phase 4 — foundation pour
         self.mark("P04_Foundation")
-        show_tree(bpy.data.objects.get("ST_Mixer"), self.frame - 8)
-        self.vehicle_path(
-            "ST_Mixer",
-            [
-                (self.frame - 8, (road[0] + 2, road[1] + 1, pad_z)),
-                (self.frame, mixer_xy),
-                (self.frame + 40, (mixer_xy[0] + 0.4, mixer_xy[1], pad_z)),
-            ],
-        )
         for obj in self.groups["footings"]:
             end = crane_lift(
                 obj,
                 self.frame,
                 duration=LIFT_DURATIONS["core"],
                 boom_deg=self.next_boom(),
-                hook_low=-1.6,
+                top_z=self.crane_top_z,
             )
             self.frame = end
         for obj in self.groups["foundation"]:
@@ -446,39 +541,31 @@ class ConstructionDirector:
                 self.frame,
                 duration=LIFT_DURATIONS["core"],
                 boom_deg=self.next_boom(),
-                hook_low=-1.4,
+                top_z=self.crane_top_z,
             )
             self.frame = end
 
-        # Phase 5 — elevator core slip-form
-        self.mark("P05_Core")
-        show_tree(bpy.data.objects.get("ST_Crane"), self.frame - 12)
-        self.vehicle_path(
-            "ST_Crane",
-            [
-                (self.frame - 12, (road[0] + 4, road[1] + 3, pad_z)),
-                (self.frame, crane_xy),
-            ],
-        )
+        # Phase 5 — crane already on the pad (frame 1). Do not wipe boom location.
+        self.mark("P05_Crane")
+        if crane is not None:
+            crane.location = crane_xy
+            crane.keyframe_insert("location", frame=self.frame)
+        key_crane_mast(self.frame, self.crane_top_z, pad_z)
         boom = bpy.data.objects.get("ST_CraneBoomPivot")
-        if boom:
-            clear_anim(boom)
+        if boom is not None:
             boom.rotation_euler = (0.0, 0.0, math.radians(-95))
+            boom.keyframe_insert("rotation_euler", frame=1)
             boom.keyframe_insert("rotation_euler", frame=self.frame)
 
-        for index, obj in enumerate(self.groups["core_lifts"], start=1):
-            end = crane_lift(
-                obj,
-                self.frame,
-                duration=LIFT_DURATIONS["core"],
-                boom_deg=self.next_boom(),
-                hook_low=hook_depth_for_floor(index) + 1.2,
-            )
-            self.frame = end
-
-        # Phases 6–11 — stack one complete floor at a time (steel → windows → deck → slab → curtain)
+        # Phases 6–11 — RC load path per story: columns → beams → slab
         self.mark("P06_StackStart")
-        floor_count = len(self.groups["frame_floors"])
+        floor_count = max(
+            len(self.groups["frame_floors"]),
+            len(self.groups["columns"]),
+            len(self.groups["slabs"]),
+        )
+        columns = self.groups["columns"]
+        cores = self.groups["core_lifts"]
         decks = self.groups["decks"]
         slabs = self.groups["slabs"]
         windows = self.groups["window_floors"]
@@ -486,90 +573,117 @@ class ConstructionDirector:
 
         for floor_index in range(1, floor_count + 1):
             self.mark(f"P06_Floor_{floor_index:02d}")
+            floor_top = site.floor_ring_z(floor_index)
+            self.raise_crane(floor_top)
 
-            frame_obj = self.groups["frame_floors"][floor_index - 1]
-            end = crane_lift(
-                frame_obj,
-                self.frame,
-                duration=LIFT_DURATIONS["steel"],
-                boom_deg=self.next_boom(),
-                hook_low=hook_depth_for_floor(floor_index),
-                floor_index=floor_index,
-            )
-            window_pieces = windows[floor_index - 1] if floor_index - 1 < len(windows) else []
-            for window in window_pieces:
-                pop_in(window, end - DROP_HOLD - BOLT_HOLD)
-
+            if floor_index - 1 < len(columns):
+                self.frame = crane_lift(
+                    columns[floor_index - 1],
+                    self.frame,
+                    duration=LIFT_DURATIONS["column"],
+                    boom_deg=self.next_boom(),
+                    floor_index=floor_index,
+                    top_z=floor_top,
+                )
+            if floor_index - 1 < len(cores):
+                self.frame = crane_lift(
+                    cores[floor_index - 1],
+                    self.frame,
+                    duration=LIFT_DURATIONS["core"],
+                    boom_deg=self.next_boom(),
+                    floor_index=floor_index,
+                    top_z=floor_top,
+                )
+            if floor_index - 1 < len(self.groups["frame_floors"]):
+                self.frame = crane_lift(
+                    self.groups["frame_floors"][floor_index - 1],
+                    self.frame,
+                    duration=LIFT_DURATIONS["steel"],
+                    boom_deg=self.next_boom(),
+                    floor_index=floor_index,
+                    top_z=floor_top,
+                )
             if floor_index - 1 < len(decks):
-                end = crane_lift(
+                self.frame = crane_lift(
                     decks[floor_index - 1],
                     self.frame,
                     duration=LIFT_DURATIONS["deck"],
                     boom_deg=self.next_boom(),
-                    hook_low=hook_depth_for_floor(floor_index) - 0.2,
                     floor_index=floor_index,
+                    top_z=floor_top,
+                )
+            if floor_index - 1 < len(slabs):
+                self.frame = crane_lift(
+                    slabs[floor_index - 1],
+                    self.frame,
+                    duration=LIFT_DURATIONS["slab"],
+                    boom_deg=self.next_boom(),
+                    floor_index=floor_index,
+                    top_z=floor_top,
                 )
 
-            if floor_index - 1 < len(slabs):
-                end = pour_spread(slabs[floor_index - 1], self.frame, duration=18)
+        self.mark("P11_FrameDone")
 
+        # Envelope after the RC frame — walls first, glass after, never same beat.
+        self.mark("P11_Walls")
+        crown_z = site.floor_ring_z(max(1, floor_count))
+        self.raise_crane(crown_z)
+        for floor_index in range(1, floor_count + 1):
             if floor_index - 1 < len(curtains):
                 for panel in curtains[floor_index - 1]:
-                    end = crane_lift(
+                    self.frame = crane_lift(
                         panel,
                         self.frame,
                         duration=LIFT_DURATIONS["panel"],
                         boom_deg=self.next_boom(),
-                        hook_low=hook_depth_for_floor(floor_index) - 0.35,
                         floor_index=floor_index,
+                        top_z=crown_z,
                     )
 
-            self.frame = end
+        self.mark("P11_Windows")
+        for floor_index in range(1, floor_count + 1):
+            window_pieces = windows[floor_index - 1] if floor_index - 1 < len(windows) else []
+            for window in window_pieces:
+                pop_in(window, self.frame)
+            if window_pieces:
+                self.advance(8)
 
-        self.mark("P11_CurtainDone")
+        self.mark("P11_EnvelopeDone")
 
         # Phase 12 — roof
         self.mark("P12_Roof")
+        roof_top = pad_z + site.HEIGHT + 0.32
+        self.raise_crane(roof_top)
         for obj in self.groups["roof"]:
-            end = crane_lift(
+            self.frame = crane_lift(
                 obj,
                 self.frame,
                 duration=LIFT_DURATIONS["roof"],
                 boom_deg=self.next_boom(),
-                hook_low=-6.2,
+                floor_index=max(1, floor_count),
+                top_z=roof_top,
             )
-            self.frame = end
 
         # Phase 13 — MEP / roof systems
         self.mark("P13_Systems")
-        for index, obj in enumerate(self.groups["systems"]):
-            end = crane_lift(
+        for obj in self.groups["systems"]:
+            self.frame = crane_lift(
                 obj,
                 self.frame,
                 duration=LIFT_DURATIONS["light"],
                 boom_deg=self.next_boom(),
-                hook_low=-6.0 - index * 0.15,
+                floor_index=max(1, floor_count),
+                top_z=roof_top,
             )
-            self.frame = end
 
         crane_leave = self.frame
         crane = bpy.data.objects.get("ST_Crane")
-        if crane:
-            clear_anim(crane)
+        if crane is not None:
             crane.location = crane_xy
             crane.keyframe_insert("location", frame=crane_leave)
-            crane.location = (crane_xy[0] + 6.5, crane_xy[1] + 4.0, pad_z)
-            crane.keyframe_insert("location", frame=crane_leave + 18)
-
-        mixer = bpy.data.objects.get("ST_Mixer")
-        if mixer:
-            hide_tree(mixer, 1, crane_leave - 20)
-
-        dozer = bpy.data.objects.get("ST_Dozer")
-        if dozer:
-            hide_tree(dozer, 1, crane_leave - 60)
-
-        hide_tree(crane, 1, crane_leave + 18)
+            crane.location = (crane_xy[0] + 5.4, crane_xy[1] + 5.0, pad_z)
+            crane.keyframe_insert("location", frame=crane_leave + 22)
+            key_crane_mast(crane_leave + 22, roof_top, pad_z)
 
         # Phase 17 — commissioning
         self.mark("P17_Commission")
@@ -607,35 +721,12 @@ def animate_groups(groups):
         clear_anim(dirt)
         hide_at(dirt, 1, False)
 
-    buildables = (
-        groups["foundation"]
-        + groups["earthwork"]
-        + groups["utilities"]
-        + groups["footings"]
-        + groups["core_lifts"]
-        + groups["frame_floors"]
-        + groups["decks"]
-        + groups["slabs"]
-        + [obj for floor in groups["window_floors"] for obj in floor]
-        + [obj for floor in groups["curtain_floors"] for obj in floor]
-        + groups["roof"]
-        + groups["systems"]
-        + groups["activation"]
-    )
-    pad = bpy.data.objects.get("ST_Foundation")
-    if pad and pad not in buildables:
-        buildables.append(pad)
-    for obj in buildables:
-        hide_at(obj, 1, True)
+    # Spawn pose is tiny scale (crane_lift / pop_in / pour_spread), not hide_viewport.
 
     payload = bpy.data.objects.get("ST_CranePayload")
-    if payload:
-        hide_at(payload, 1, True)
-
-    for vehicle_name in ("ST_Crane", "ST_Mixer", "ST_Dozer"):
-        vehicle = bpy.data.objects.get(vehicle_name)
-        if vehicle:
-            hide_at(vehicle, 1, True)
+    if payload is not None:
+        payload.scale = (0.04, 0.04, 0.04)
+        payload.keyframe_insert("scale", frame=1)
 
     director = ConstructionDirector(groups)
     global CRANE_BUILD_END, COMPLETE_START, END
@@ -691,8 +782,10 @@ def setup(save_path: str | None = None) -> dict[str, int]:
     import sys
 
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    if root not in sys.path:
-        sys.path.insert(0, root)
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    for path in (scripts_dir, root):
+        if path not in sys.path:
+            sys.path.insert(0, path)
 
     import build_skyscraper
 
