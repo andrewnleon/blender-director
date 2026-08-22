@@ -1,5 +1,12 @@
 import type { Agent, AgentTask } from "@/types/openclaw";
 import type { ConstructionState } from "@/lib/construction/types";
+
+/** Bind-pose scrub when no OpenClaw tasks are driving this catalog entry yet. */
+export const EMPTY_CONSTRUCTION_STATE: ConstructionState = {
+  stage: 0,
+  progress: 0,
+  isLive: false,
+};
 import {
   constructionStageForCatalog,
   primaryAgentStatus,

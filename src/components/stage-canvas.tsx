@@ -35,7 +35,10 @@ import {
   type CatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
-import { isConstructionComplete } from "@/lib/construction/driver";
+import {
+  EMPTY_CONSTRUCTION_STATE,
+  isConstructionComplete,
+} from "@/lib/construction/driver";
 import type { ConstructionState } from "@/lib/construction/types";
 import { canPlaceAt } from "@/lib/placement-collision";
 
@@ -476,11 +479,19 @@ function getDeferredGrowIns(clip: AnimationClip, root: Object3D): DeferredGrow[]
   return deferred;
 }
 
-function collapseUntilGrow(deferred: readonly DeferredGrow[], time: number) {
+function collapseUntilGrow(
+  deferred: readonly DeferredGrow[],
+  time: number,
+  hideBeforeGrow = true,
+) {
   for (const { object, growStart } of deferred) {
     if (time < growStart - 1e-4) {
-      object.visible = false;
-      object.scale.setScalar(BIND_COLLAPSE);
+      if (hideBeforeGrow) {
+        object.visible = false;
+        object.scale.setScalar(BIND_COLLAPSE);
+      } else {
+        object.visible = true;
+      }
     } else {
       object.visible = true;
     }
@@ -604,7 +615,11 @@ function AnimatedGlb({
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
+    const hideBeforeGrow = !isScrubMode;
     if (clipsToPlay.length === 0) {
+      if (wrap) {
+        wrap.visible = true;
+      }
       return;
     }
 
@@ -635,11 +650,11 @@ function AnimatedGlb({
         action.time = Math.min(targetTime, action.getClip().duration);
       }
       mixer.update(0);
-      collapseUntilGrow(deferredGrowIns, targetTime);
+      collapseUntilGrow(deferredGrowIns, targetTime, hideBeforeGrow);
       setConstructDone(isConstructionComplete(constructionProgress ?? 0));
     } else {
       mixer.update(0);
-      collapseUntilGrow(deferredGrowIns, 0);
+      collapseUntilGrow(deferredGrowIns, 0, hideBeforeGrow);
     }
 
     actionsRef.current = actions;
@@ -699,7 +714,7 @@ function AnimatedGlb({
       action.time = Math.min(targetTime, action.getClip().duration);
     }
     mixer.update(0);
-    collapseUntilGrow(deferredRef.current, targetTime);
+    collapseUntilGrow(deferredRef.current, targetTime, false);
     setConstructDone(isConstructionComplete(constructionProgress));
   }, [constructionProgress, isScrubMode, mixer]);
 
@@ -709,7 +724,7 @@ function AnimatedGlb({
       return;
     }
     const maxTime = Math.max(...actions.map((action) => action.time));
-    collapseUntilGrow(deferredRef.current, maxTime);
+    collapseUntilGrow(deferredRef.current, maxTime, !isScrubMode);
   });
 
   return (
@@ -733,14 +748,14 @@ function AssetPreview({
 }) {
   if (item.kind === "glb" && item.url) {
     if (item.clip && !staticPreview) {
-      const driveMode = constructionState ? "scrub" : "auto";
+      const resolvedState = constructionState ?? EMPTY_CONSTRUCTION_STATE;
       return (
         <AnimatedGlb
           url={item.url}
           clip={item.clip}
           playbackSpeed={playbackSpeed}
-          driveMode={driveMode}
-          constructionProgress={constructionState?.progress}
+          driveMode="scrub"
+          constructionProgress={resolvedState.progress}
         />
       );
     }
@@ -800,7 +815,7 @@ function PlacedAsset({
 }
 
 useGLTF.preload("/models/skyscraper.glb?v=42");
-useGLTF.preload("/models/operations-center.glb?v=5");
+useGLTF.preload("/models/operations-center.glb?v=7");
 
 export function StageCanvas({
   objects,
@@ -831,7 +846,7 @@ export function StageCanvas({
     <Canvas
       className={`absolute inset-0 ${placing ? "cursor-crosshair" : ""}`}
       shadows="percentage"
-      camera={{ position: [24, 18, 24], fov: 40, near: 0.1, far: 200 }}
+      camera={{ position: [24, 18, 24], fov: 40, near: 0.1, far: 450 }}
       gl={{
         antialias: true,
         toneMappingExposure: 1.05,

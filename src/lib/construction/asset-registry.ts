@@ -95,7 +95,7 @@ export const BUILDING_DEFINITIONS: readonly BuildingAssetDefinition[] = [
     prefix: "OC_",
     projectFile: "operations-center/operations-center.blend",
     footprint: { width: 10, depth: 10 },
-    url: "/models/operations-center.glb?v=5",
+    url: "/models/operations-center.glb?v=7",
     clip: "construct",
     maxCount: 1,
     inLibrary: true,

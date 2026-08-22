@@ -20,7 +20,13 @@ BUILDING_ID = "operations-center"
 BLEND_PATH = os.path.join(PROJECTS, BUILDING_ID, f"{BUILDING_ID}.blend")
 GLB_PATH = os.path.join(OUT_DIR, f"{BUILDING_ID}.glb")
 MESH_PREFIX = "OC_"
-SKIP_NAMES = {"OC_DirtGround"}
+SKIP_NAMES = {
+    "OC_DirtGround",
+    "OC_Fence_N",
+    "OC_Fence_S",
+    "OC_Fence_E",
+    "OC_Fence_W",
+}
 
 
 def select_export_objects() -> list[str]:

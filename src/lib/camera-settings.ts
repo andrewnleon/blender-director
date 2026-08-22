@@ -9,13 +9,13 @@ export type CameraSettings = {
 };
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
-  viewDistance: 38,
+  viewDistance: 52,
   rotateSpeed: 0.55,
   panSpeed: 0.45,
   zoomSpeed: 0.65,
   dampingFactor: 0.085,
   minDistance: 8,
-  maxDistance: 72,
+  maxDistance: 180,
 };
 
 /** Placement mode uses a slower rotate feel relative to the user's base rotate speed. */
@@ -27,13 +27,13 @@ export const CAMERA_SETTING_BOUNDS: Record<
   CameraSettingKey,
   { min: number; max: number; step: number; label: string }
 > = {
-  viewDistance: { min: 6, max: 96, step: 1, label: "View distance" },
+  viewDistance: { min: 6, max: 288, step: 1, label: "View distance" },
   rotateSpeed: { min: 0.15, max: 1.5, step: 0.05, label: "Rotate speed" },
   panSpeed: { min: 0.1, max: 1.5, step: 0.05, label: "Pan speed" },
   zoomSpeed: { min: 0.15, max: 2, step: 0.05, label: "Zoom speed" },
   dampingFactor: { min: 0.02, max: 0.25, step: 0.005, label: "Damping" },
   minDistance: { min: 4, max: 24, step: 1, label: "Min zoom distance" },
-  maxDistance: { min: 24, max: 96, step: 2, label: "Max zoom distance" },
+  maxDistance: { min: 24, max: 288, step: 4, label: "Max zoom distance" },
 };
 
 export const PRIMARY_CAMERA_KEYS: CameraSettingKey[] = [
@@ -52,7 +52,7 @@ export function getSceneFogDistances(settings: CameraSettings): {
   const zoomExtent = Math.max(settings.maxDistance, settings.viewDistance);
   return {
     near: Math.max(24, settings.minDistance * 2.5),
-    far: zoomExtent + 56,
+    far: zoomExtent + 96,
   };
 }
 

@@ -102,5 +102,10 @@ export function constructionStageForCatalog(
       relevantTasks = [...tasks];
   }
 
+  if (relevantTasks.length === 0) {
+    // Staged yards start empty until agent work arrives; scheduled hero stays complete when idle.
+    return definition.tier === "staged" ? 0 : 3;
+  }
+
   return stageFromTaskStatuses(relevantTasks.map((task) => task.status));
 }

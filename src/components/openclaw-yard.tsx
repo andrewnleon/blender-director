@@ -1,19 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useState } from "react";
 import type { OpenClawEvent } from "@/types/openclaw-event";
 import { canPlaceAt } from "@/lib/placement-collision";
-import { AgentStreamConnectButton } from "@/components/agent-stream-connect-button";
-import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
-import { CameraSettingsPanel } from "@/components/camera-settings-panel";
 import { useAgentStream } from "@/hooks/use-agent-stream";
 import { useAgentYard } from "@/hooks/use-agent-yard";
 import { StageCanvas } from "@/components/stage-canvas";
+import { YardControlPanel } from "@/components/yard-control-panel";
+import { YardPalettePanel } from "@/components/yard-palette-panel";
 import {
-  CATALOG,
   canPlaceCatalogItem,
-  countPlaced,
   getCatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
@@ -23,34 +19,7 @@ import {
 } from "@/lib/animation-settings";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
 
-const PALETTE_VISIBLE_SESSION_KEY = "openclaw-yard.palette-visible";
 const SANDBOX_MODE_SESSION_KEY = "openclaw-yard.sandbox-mode";
-
-function readPaletteVisibleFromSession(): boolean {
-  if (typeof window === "undefined") {
-    return true;
-  }
-  try {
-    const stored = sessionStorage.getItem(PALETTE_VISIBLE_SESSION_KEY);
-    if (stored === "0") {
-      return false;
-    }
-    if (stored === "1") {
-      return true;
-    }
-  } catch {
-    return true;
-  }
-  return true;
-}
-
-function writePaletteVisibleToSession(isVisible: boolean): void {
-  try {
-    sessionStorage.setItem(PALETTE_VISIBLE_SESSION_KEY, isVisible ? "1" : "0");
-  } catch {
-    // sessionStorage may be unavailable in private browsing
-  }
-}
 
 function readSandboxModeFromSession(): boolean {
   if (typeof window === "undefined") {
@@ -75,27 +44,7 @@ function nextId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function ChevronIcon({ direction }: { direction: "left" | "right" }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="size-3.5 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-    >
-      {direction === "left" ? (
-        <path d="M10 3 5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
-      ) : (
-        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-    </svg>
-  );
-}
-
 export function OpenClawYard() {
-  const titleId = useId();
   const [objects, setObjects] = useState<PlacedObject[]>([]);
   const [placeCatalogId, setPlaceCatalogId] = useState<string | null>("skyscraper");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -106,8 +55,9 @@ export function OpenClawYard() {
     DEFAULT_ANIMATION_SETTINGS,
   );
   const [hoverCanPlace, setHoverCanPlace] = useState<boolean | null>(null);
-  const [isPaletteVisible, setIsPaletteVisible] = useState(true);
-  const [isSandboxMode, setIsSandboxMode] = useState(false);
+  const [isSandboxMode, setIsSandboxMode] = useState(() =>
+    readSandboxModeFromSession(),
+  );
   const [lastStreamEvent, setLastStreamEvent] = useState<OpenClawEvent | null>(null);
   const agentStream = useAgentStream({ onEvent: setLastStreamEvent });
   const agentYard = useAgentYard({
@@ -115,19 +65,6 @@ export function OpenClawYard() {
     streamConnected: agentStream.status === "connected",
     lastStreamEvent,
   });
-
-  useEffect(() => {
-    setIsPaletteVisible(readPaletteVisibleFromSession());
-    setIsSandboxMode(readSandboxModeFromSession());
-  }, []);
-
-  const togglePaletteVisible = useCallback(() => {
-    setIsPaletteVisible((visible) => {
-      const nextVisible = !visible;
-      writePaletteVisibleToSession(nextVisible);
-      return nextVisible;
-    });
-  }, []);
 
   const toggleSandboxMode = useCallback(() => {
     setIsSandboxMode((enabled) => {
@@ -201,223 +138,44 @@ export function OpenClawYard() {
         onPlacementHoverChange={setHoverCanPlace}
       />
 
-      <header className="pointer-events-none absolute top-0 left-0 right-0 flex items-start justify-between gap-4 p-4">
-        <div className="pointer-events-auto max-w-md rounded-lg border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md">
-          <h1
-            id={titleId}
-            className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80"
-          >
+      <header className="pointer-events-none absolute top-0 left-0 p-4">
+        <div className="pointer-events-auto rounded-lg border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md">
+          <h1 className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">
             OpenClaw Yard
           </h1>
         </div>
-        <div className="flex items-start gap-2">
-          <button
-            type="button"
-            onClick={toggleSandboxMode}
-            aria-pressed={isSandboxMode}
-            className={`pointer-events-auto rounded-lg border px-3 py-2 text-xs backdrop-blur-md transition ${
-              isSandboxMode
-                ? "border-amber-300/70 bg-amber-200/10 text-amber-100 hover:border-amber-300/80 hover:bg-amber-200/15"
-                : "border-white/10 bg-black/55 text-zinc-200 hover:border-white/20 hover:bg-black/65"
-            }`}
-          >
-            Sandbox mode
-          </button>
-          <AgentStreamConnectButton
-            isEnabled={agentStream.isEnabled}
-            status={agentStream.status}
-            onToggle={agentStream.toggle}
-          />
-          <AnimationSettingsPanel
-            settings={animationSettings}
-            onChange={setAnimationSettings}
-          />
-          <CameraSettingsPanel
-            settings={cameraSettings}
-            onChange={setCameraSettings}
-            placementHint={placementHint}
-          />
-        </div>
       </header>
 
-      <aside
-        id="openclaw-yard-palette-sidebar"
-        aria-labelledby={titleId}
-        className={`pointer-events-none absolute top-0 left-0 z-10 flex h-full flex-col pt-20 pb-4 pl-4 transition-[width] duration-200 ease-out ${
-          isPaletteVisible ? "w-72" : "w-14"
-        }`}
-      >
-        <div className="pointer-events-auto relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/60 backdrop-blur-md">
-          {isPaletteVisible ? (
-            <button
-              type="button"
-              onClick={togglePaletteVisible}
-              aria-expanded={isPaletteVisible}
-              aria-controls="openclaw-yard-palette-sidebar"
-              aria-label="Collapse palette sidebar"
-              className="absolute top-3 -right-3 z-10 flex size-7 items-center justify-center rounded-full border border-white/10 bg-black/80 text-zinc-200 shadow-sm backdrop-blur-md transition hover:border-white/25 hover:bg-black/90"
-            >
-              <ChevronIcon direction="left" />
-            </button>
-          ) : null}
-
-          {isPaletteVisible ? (
-            <>
-              <div className="flex shrink-0 flex-col gap-3 p-3 pr-4">
-                <div className="space-y-1">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                    Palette
-                  </p>
-                  {placementHint ? (
-                    <p
-                      className={`text-[11px] leading-snug ${
-                        hoverCanPlace === false
-                          ? "text-rose-300/90"
-                          : "text-amber-200/80"
-                      }`}
-                      aria-live="polite"
-                    >
-                      {placementHint}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-zinc-600">Orbit mode</p>
-                  )}
-                </div>
-
-                <div className="max-h-64 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-2">
-                    {CATALOG.map((item) => {
-                      const active =
-                        placeCatalogId === item.id &&
-                        canPlaceCatalogItem(item.id, objects, isSandboxMode);
-                      const isAtCap =
-                        !isSandboxMode &&
-                        item.maxCount !== undefined &&
-                        countPlaced(objects, item.id) >= item.maxCount;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          disabled={isAtCap}
-                          aria-disabled={isAtCap}
-                          aria-pressed={active}
-                          title={
-                            isAtCap ? `${item.label} already in yard` : undefined
-                          }
-                          onClick={() =>
-                            setPlaceCatalogId((current) =>
-                              current === item.id ? null : item.id,
-                            )
-                          }
-                          className={`rounded-md border px-2 py-2 text-left text-sm transition ${
-                            isAtCap
-                              ? "cursor-not-allowed border-white/10 bg-white/5 text-zinc-500"
-                              : active
-                                ? "border-amber-300/70 bg-amber-200/10 text-amber-100"
-                                : "border-white/10 bg-white/5 text-zinc-200 hover:border-white/25"
-                          }`}
-                        >
-                          <span className="block text-xs font-medium leading-tight">
-                            {item.label}
-                          </span>
-                          <span className="mt-0.5 block text-[10px] leading-snug text-zinc-500">
-                            {isAtCap
-                              ? "already in yard"
-                              : `${item.role}${item.kind === "glb" ? " · GLB" : " · primitive"}`}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Link
-                    href="/library"
-                    className="inline-flex rounded-md border border-white/10 px-3 py-1.5 text-center text-sm text-zinc-300 hover:bg-white/5"
-                  >
-                    Asset library grid
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/5"
-                  >
-                    Reset yard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRemoveSelected}
-                    disabled={!selectedId}
-                    className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/5 disabled:opacity-40"
-                  >
-                    Remove selected
-                  </button>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/10 p-3 pr-4">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                  Placed · {objects.length}
-                </p>
-                {objects.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Yard is empty.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {objects.map((object) => {
-                      const item = getCatalogItem(object.catalogId);
-                      const isSelected = object.id === selectedId;
-                      return (
-                        <li key={object.id}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedId(object.id)}
-                            className={`flex w-full items-center justify-between rounded px-2 py-1 text-left ${
-                              isSelected
-                                ? "bg-white/10 text-white"
-                                : "text-zinc-300"
-                            }`}
-                          >
-                            <span>{item?.label ?? object.catalogId}</span>
-                            <span className="font-mono text-[11px] text-zinc-500">
-                              {object.position[0]}, {object.position[2]}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-1 flex-col items-center gap-3 px-1 py-4">
-              <button
-                type="button"
-                onClick={togglePaletteVisible}
-                aria-label="Expand palette sidebar"
-                className="flex size-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-300 transition hover:border-white/25 hover:bg-white/10"
-              >
-                <ChevronIcon direction="right" />
-              </button>
-              <span
-                className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500 [writing-mode:vertical-rl]"
-                aria-hidden="true"
-              >
-                Palette
-              </span>
-              {objects.length > 0 ? (
-                <span
-                  className="flex size-6 items-center justify-center rounded-full bg-amber-200/15 text-[10px] font-medium text-amber-100"
-                  aria-label={`${objects.length} placed in yard`}
-                >
-                  {objects.length}
-                </span>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </aside>
+      <div className="pointer-events-none absolute top-4 right-4 z-20 flex items-start gap-2">
+        <YardControlPanel
+          objects={objects}
+          selectedId={selectedId}
+          isSandboxMode={isSandboxMode}
+          onToggleSandboxMode={toggleSandboxMode}
+          onSelectObject={setSelectedId}
+          onResetYard={handleReset}
+          onRemoveSelected={handleRemoveSelected}
+          placementHint={placementHint}
+          hoverCanPlace={hoverCanPlace}
+          cameraSettings={cameraSettings}
+          onCameraSettingsChange={setCameraSettings}
+          animationSettings={animationSettings}
+          onAnimationSettingsChange={setAnimationSettings}
+          streamEnabled={agentStream.isEnabled}
+          streamStatus={agentStream.status}
+          onStreamToggle={agentStream.toggle}
+          isStreamLive={agentYard.isLive}
+          streamFetchError={agentYard.fetchError}
+        />
+        <YardPalettePanel
+          objects={objects}
+          placeCatalogId={placeCatalogId}
+          isSandboxMode={isSandboxMode}
+          onPlaceCatalogIdChange={setPlaceCatalogId}
+          placementHint={placementHint}
+          hoverCanPlace={hoverCanPlace}
+        />
+      </div>
     </div>
   );
 }

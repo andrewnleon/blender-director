@@ -45,3 +45,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Pack source assets (large Blender/FBX — keep local; ship exported GLBs only)
+public/models/packs/blender/*.blend
+public/models/packs/blender/*.fbx

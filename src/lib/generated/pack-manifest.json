@@ -1,0 +1,800 @@
+{
+  "generatedAt": "pack-export",
+  "items": [
+    {
+      "id": "pack-residential-001",
+      "label": "Residential 001",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-001.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 001"
+    },
+    {
+      "id": "pack-residential-002",
+      "label": "Residential 002",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-002.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 002"
+    },
+    {
+      "id": "pack-residential-003",
+      "label": "Residential 003",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-003.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 003"
+    },
+    {
+      "id": "pack-residential-004",
+      "label": "Residential 004",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-004.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 004"
+    },
+    {
+      "id": "pack-residential-005",
+      "label": "Residential 005",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-005.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 005"
+    },
+    {
+      "id": "pack-residential-006",
+      "label": "Residential 006",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-006.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 006"
+    },
+    {
+      "id": "pack-residential-007",
+      "label": "Residential 007",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-007.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 007"
+    },
+    {
+      "id": "pack-residential-008",
+      "label": "Residential 008",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-008.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 008"
+    },
+    {
+      "id": "pack-residential-009",
+      "label": "Residential 009",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-009.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 009"
+    },
+    {
+      "id": "pack-residential-010",
+      "label": "Residential 010",
+      "role": "Residential pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-residential-010.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 14.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "01 Residential Buildings Set.blend",
+      "sourceMesh": "Residential Buildings 010"
+    },
+    {
+      "id": "pack-futuristic-city-001",
+      "label": "City tower 001",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-001.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 50.0,
+        "depth": 76.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.001"
+    },
+    {
+      "id": "pack-futuristic-city-002",
+      "label": "City tower 002",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-002.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 16.0,
+        "depth": 16.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.002"
+    },
+    {
+      "id": "pack-futuristic-city-003",
+      "label": "City tower 003",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-003.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 22.0,
+        "depth": 22.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.003"
+    },
+    {
+      "id": "pack-futuristic-city-004",
+      "label": "City tower 004",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-004.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 22.0,
+        "depth": 22.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.004"
+    },
+    {
+      "id": "pack-futuristic-city-005",
+      "label": "City tower 005",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-005.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 14.0,
+        "depth": 14.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.005"
+    },
+    {
+      "id": "pack-futuristic-city-006",
+      "label": "City tower 006",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-006.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 30.0,
+        "depth": 20.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.006"
+    },
+    {
+      "id": "pack-futuristic-city-007",
+      "label": "City tower 007",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-007.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 20.0,
+        "depth": 14.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.007"
+    },
+    {
+      "id": "pack-futuristic-city-1679",
+      "label": "City tower 1679",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-1679.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 34.0,
+        "depth": 44.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.1679"
+    },
+    {
+      "id": "pack-futuristic-city-205",
+      "label": "City tower 205",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-205.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 22.0,
+        "depth": 22.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.205"
+    },
+    {
+      "id": "pack-futuristic-city-210",
+      "label": "City tower 210",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-210.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 54.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.210"
+    },
+    {
+      "id": "pack-futuristic-city-2484",
+      "label": "City tower 2484",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-2484.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 26.0,
+        "depth": 30.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.2484"
+    },
+    {
+      "id": "pack-futuristic-city-2560",
+      "label": "City tower 2560",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-2560.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 14.0,
+        "depth": 12.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.2560"
+    },
+    {
+      "id": "pack-futuristic-city-2670",
+      "label": "City tower 2670",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-2670.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 56.0,
+        "depth": 58.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.2670"
+    },
+    {
+      "id": "pack-futuristic-city-3781",
+      "label": "City tower 3781",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-3781.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 36.0,
+        "depth": 34.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.3781"
+    },
+    {
+      "id": "pack-futuristic-city-782",
+      "label": "City tower 782",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-782.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 64.0,
+        "depth": 68.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.782"
+    },
+    {
+      "id": "pack-futuristic-city-923",
+      "label": "City tower 923",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-city-923.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 24.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "city buildings.windows.923"
+    },
+    {
+      "id": "pack-futuristic-cube-0",
+      "label": "Futuristic cube 0",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-cube-0.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 34.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Cube"
+    },
+    {
+      "id": "pack-futuristic-downtown-001",
+      "label": "Downtown 001",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-001.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 40.0,
+        "depth": 38.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.001"
+    },
+    {
+      "id": "pack-futuristic-downtown-002",
+      "label": "Downtown 002",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-002.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 32.0,
+        "depth": 30.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.002"
+    },
+    {
+      "id": "pack-futuristic-downtown-003",
+      "label": "Downtown 003",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-003.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.003"
+    },
+    {
+      "id": "pack-futuristic-downtown-004",
+      "label": "Downtown 004",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-004.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 28.0,
+        "depth": 20.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.004"
+    },
+    {
+      "id": "pack-futuristic-downtown-005",
+      "label": "Downtown 005",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-005.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.005"
+    },
+    {
+      "id": "pack-futuristic-downtown-006",
+      "label": "Downtown 006",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-006.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.006"
+    },
+    {
+      "id": "pack-futuristic-downtown-007",
+      "label": "Downtown 007",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-007.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.007"
+    },
+    {
+      "id": "pack-futuristic-downtown-008",
+      "label": "Downtown 008",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-008.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 12.0,
+        "depth": 12.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.008"
+    },
+    {
+      "id": "pack-futuristic-downtown-009",
+      "label": "Downtown 009",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-009.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 12.0,
+        "depth": 12.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.009"
+    },
+    {
+      "id": "pack-futuristic-downtown-010",
+      "label": "Downtown 010",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-010.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 12.0,
+        "depth": 12.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.010"
+    },
+    {
+      "id": "pack-futuristic-downtown-011",
+      "label": "Downtown 011",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-011.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 24.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.011"
+    },
+    {
+      "id": "pack-futuristic-downtown-012",
+      "label": "Downtown 012",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-012.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.012"
+    },
+    {
+      "id": "pack-futuristic-downtown-013",
+      "label": "Downtown 013",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-013.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 18.0,
+        "depth": 26.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.013"
+    },
+    {
+      "id": "pack-futuristic-downtown-014",
+      "label": "Downtown 014",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-014.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.014"
+    },
+    {
+      "id": "pack-futuristic-downtown-015",
+      "label": "Downtown 015",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-015.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 12.0,
+        "depth": 12.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.015"
+    },
+    {
+      "id": "pack-futuristic-downtown-016",
+      "label": "Downtown 016",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-016.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 28.0,
+        "depth": 32.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.016"
+    },
+    {
+      "id": "pack-futuristic-downtown-017",
+      "label": "Downtown 017",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-017.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 30.0,
+        "depth": 28.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.017"
+    },
+    {
+      "id": "pack-futuristic-downtown-1296",
+      "label": "Downtown 1296",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1296.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 32.0,
+        "depth": 26.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.1296"
+    },
+    {
+      "id": "pack-futuristic-downtown-1299",
+      "label": "Downtown 1299",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1299.glb?v=1",
+      "accent": "#e879f9",
+      "footprint": {
+        "width": 24.0,
+        "depth": 30.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.1299"
+    },
+    {
+      "id": "pack-futuristic-downtown-1395",
+      "label": "Downtown 1395",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1395.glb?v=1",
+      "accent": "#38bdf8",
+      "footprint": {
+        "width": 28.0,
+        "depth": 28.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.1395"
+    },
+    {
+      "id": "pack-futuristic-downtown-1421",
+      "label": "Downtown 1421",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1421.glb?v=1",
+      "accent": "#f97316",
+      "footprint": {
+        "width": 38.0,
+        "depth": 32.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.1421"
+    },
+    {
+      "id": "pack-futuristic-downtown-1464",
+      "label": "Downtown 1464",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1464.glb?v=1",
+      "accent": "#8b7355",
+      "footprint": {
+        "width": 48.0,
+        "depth": 50.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.1464"
+    },
+    {
+      "id": "pack-futuristic-downtown-267",
+      "label": "Downtown 267",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-267.glb?v=1",
+      "accent": "#6a9ec4",
+      "footprint": {
+        "width": 34.0,
+        "depth": 36.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.267"
+    },
+    {
+      "id": "pack-futuristic-downtown-453",
+      "label": "Downtown 453",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-453.glb?v=1",
+      "accent": "#7c5cbf",
+      "footprint": {
+        "width": 24.0,
+        "depth": 24.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.453"
+    },
+    {
+      "id": "pack-futuristic-downtown-495",
+      "label": "Downtown 495",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-495.glb?v=1",
+      "accent": "#22c55e",
+      "footprint": {
+        "width": 38.0,
+        "depth": 38.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.495"
+    },
+    {
+      "id": "pack-futuristic-downtown-605",
+      "label": "Downtown 605",
+      "role": "Futuristic city pack",
+      "kind": "glb",
+      "url": "/models/packs/exported/pack-futuristic-downtown-605.glb?v=1",
+      "accent": "#d97706",
+      "footprint": {
+        "width": 10.0,
+        "depth": 10.0
+      },
+      "inLibrary": true,
+      "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
+      "sourceMesh": "Downtown Center City.605"
+    }
+  ]
+}

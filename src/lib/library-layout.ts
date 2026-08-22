@@ -156,5 +156,5 @@ export function getLibraryGroundExtent(bounds: LibraryBounds): number {
 
 export function getLibraryViewDistance(bounds: LibraryBounds): number {
   const span = Math.max(bounds.width, bounds.depth);
-  return Math.min(96, Math.max(28, span * 1.35));
+  return Math.min(288, Math.max(28, span * 1.35));
 }

@@ -18,7 +18,17 @@ OUT_DIR = os.path.join(ROOT, "public", "models")
 
 MAX_TRIS = 20_000
 
-SKIP_NAMES = {"ST_Sun", "ST_Fill", "ST_Camera", "ST_DirtGround", "OC_DirtGround"}
+SKIP_NAMES = {
+    "ST_Sun",
+    "ST_Fill",
+    "ST_Camera",
+    "ST_DirtGround",
+    "OC_DirtGround",
+    "OC_Fence_N",
+    "OC_Fence_S",
+    "OC_Fence_E",
+    "OC_Fence_W",
+}
 
 CONSTRUCT_CLIP = "construct"
 

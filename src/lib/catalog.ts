@@ -1,10 +1,11 @@
 import type { CatalogItem, PlacedObject } from "@/lib/catalog-types";
 import { PALETTE_CATALOG } from "@/lib/construction/asset-registry";
+import { PACK_PALETTE_CATALOG } from "@/lib/pack-catalog";
 
 export type { CatalogFootprint, CatalogItem, PlacedObject } from "@/lib/catalog-types";
 
-/** Palette toolbar — entries from asset registry with shipped GLBs. */
-export const CATALOG: CatalogItem[] = PALETTE_CATALOG;
+/** Palette toolbar — hero buildings + bundled pack exports. */
+export const CATALOG: CatalogItem[] = [...PALETTE_CATALOG, ...PACK_PALETTE_CATALOG];
 
 export function getCatalogItem(catalogId: string) {
   return CATALOG.find((item) => item.id === catalogId);
