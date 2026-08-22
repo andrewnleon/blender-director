@@ -80,7 +80,7 @@ export const CATALOG: CatalogItem[] = [
 
     kind: "glb",
 
-    url: "/models/skyscraper.glb?v=8",
+    url: "/models/skyscraper.glb?v=11",
 
     accent: "#6a9ec4",
 

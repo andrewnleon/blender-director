@@ -18,6 +18,23 @@ FLOORS = 12
 SITE_CRANE = (5.8, 5.0, PAD_Z)
 SITE_MIXER = (4.8, -5.6, PAD_Z)
 SITE_DOZER = (-5.4, -4.8, PAD_Z)
+SITE_ROAD = (-11.0, -8.0, PAD_Z)
+
+
+def floor_height() -> float:
+    return HEIGHT / FLOORS
+
+
+def floor_center_z(floor: int) -> float:
+    return PAD_Z + floor_height() * (floor - 0.5)
+
+
+def floor_slab_z(floor: int) -> float:
+    return PAD_Z + floor_height() * floor - 0.08
+
+
+def floor_ring_z(floor: int) -> float:
+    return PAD_Z + floor_height() * floor
 
 
 def clear_scene() -> None:
@@ -169,16 +186,17 @@ def make_cylinder(name, loc, radius, depth, collection, mat, segs=16, rot=(0, 0,
     return obj
 
 
-def window_row(prefix, loc, width, depth, floor_h, floor_index, cols, collection, outward_y):
-    """Single-floor window row on one face."""
+def window_row(prefix, width, depth, floor_index, cols, collection, outward_y):
+    """Single-floor window row — object origin at floor center."""
+    floor_h = floor_height()
+    floor_center = floor_center_z(floor_index)
     bm = bmesh.new()
-    z = -HEIGHT * 0.5 + floor_h * (floor_index - 0.5)
     col_w = width / cols
     for column in range(cols):
         x = -width * 0.5 + col_w * (column + 0.5)
         y = outward_y * (depth * 0.5 + 0.04)
-        add_box_mesh(bm, (x, y, z), (col_w * 0.72, 0.06, floor_h * 0.62))
-    return mesh_from_bm(f"{prefix}_F{floor_index}", bm, collection, "ST_Window", loc)
+        add_box_mesh(bm, (x, y, 0.0), (col_w * 0.72, 0.06, floor_h * 0.62))
+    return mesh_from_bm(f"{prefix}_F{floor_index}", bm, collection, "ST_Window", (0, 0, floor_center))
 
 
 def make_site() -> None:
@@ -186,8 +204,22 @@ def make_site() -> None:
     make_cube(f"{PREFIX}DirtGround", (0, 0, -0.12), (24, 24, 0.24), site, "ST_Dirt")
     make_cube(f"{PREFIX}Pad", (0, 0, 0.16), (8.4, 8.4, 0.32), site, "ST_Concrete")
     make_cube(f"{PREFIX}Foundation", (0, 0, 0.34), (7.2, 7.2, 0.28), site, "ST_Concrete")
+    make_cube(f"{PREFIX}ExcavPit", (0, 0, -0.28), (5.6, 5.6, 0.42), site, "ST_Dirt")
+    make_cube(f"{PREFIX}UtilRun", (0, -2.1, -0.04), (4.2, 0.28, 0.18), site, "ST_DarkMetal")
     for index, (x, y) in enumerate(((-2.4, -2.4), (2.4, -2.4), (-2.4, 2.4), (2.4, 2.4))):
         make_cube(f"{PREFIX}SiteCrate_{index}", (x, y, 0.55), (0.9, 0.9, 0.9), site, "ST_ConstrYellow")
+        make_cube(f"{PREFIX}Stake_{index}", (x, y, 0.62), (0.1, 0.1, 0.55), site, "ST_ConstrYellow")
+    fence_half = PAD_HALF + 0.35
+    for index, (loc, dims) in enumerate(
+        (
+            ((0, -fence_half, 0.42), (8.8, 0.08, 0.85)),
+            ((0, fence_half, 0.42), (8.8, 0.08, 0.85)),
+            ((-fence_half, 0, 0.42), (0.08, 8.8, 0.85)),
+            ((fence_half, 0, 0.42), (0.08, 8.8, 0.85)),
+        )
+    ):
+        make_cube(f"{PREFIX}Fence_{index}", loc, dims, site, "ST_ConstrBlack")
+    make_cube(f"{PREFIX}TempOffice", (-6.8, 5.2, 0.62), (2.4, 1.8, 1.25), site, "ST_ConstrCab")
 
 
 def make_construction_meshes() -> None:
@@ -196,7 +228,7 @@ def make_construction_meshes() -> None:
     beam = 0.13
     xs = [-width * 0.44 + i * (width * 0.88 / 4) for i in range(5)]
     ys = [-depth * 0.44 + j * (depth * 0.88 / 4) for j in range(5)]
-    floor_h = HEIGHT / FLOORS
+    floor_h = floor_height()
 
     foot_bm = bmesh.new()
     for dx in (-0.42, 0.0, 0.42):
@@ -208,19 +240,32 @@ def make_construction_meshes() -> None:
     mesh_from_bm(f"{PREFIX}Footings", foot_bm, construction, "ST_Concrete")
 
     for floor in range(1, FLOORS + 1):
-        ring_z = PAD_Z + floor_h * floor
-        col_z = PAD_Z + floor_h * (floor - 0.5)
+        floor_center = floor_center_z(floor)
+        ring_local = floor_h * 0.5
         frame_bm = bmesh.new()
         for y in ys:
-            add_box_mesh(frame_bm, (0, y, ring_z), (width + beam, beam, beam))
+            add_box_mesh(frame_bm, (0, y, ring_local), (width + beam, beam, beam))
         for x in xs:
-            add_box_mesh(frame_bm, (x, 0, ring_z), (beam, depth + beam, beam))
+            add_box_mesh(frame_bm, (x, 0, ring_local), (beam, depth + beam, beam))
         for x in (xs[0], xs[-1]):
             for y in (ys[0], ys[-1]):
-                add_box_mesh(frame_bm, (x, y, col_z), (beam, beam, floor_h * 0.92))
-        mesh_from_bm(f"{PREFIX}FrameFloor_{floor}", frame_bm, construction, "ST_Steel")
+                add_box_mesh(frame_bm, (x, y, 0.0), (beam, beam, floor_h * 0.92))
+        mesh_from_bm(
+            f"{PREFIX}FrameFloor_{floor}",
+            frame_bm,
+            construction,
+            "ST_Steel",
+            (0, 0, floor_center),
+        )
 
-        slab_z = PAD_Z + floor_h * floor - 0.08
+        slab_z = floor_slab_z(floor)
+        make_cube(
+            f"{PREFIX}Deck_{floor}",
+            (0, 0, slab_z - 0.06),
+            (width * 0.86, depth * 0.86, 0.05),
+            construction,
+            "ST_LightMetal",
+        )
         make_cube(
             f"{PREFIX}FloorSlab_{floor}",
             (0, 0, slab_z),
@@ -309,22 +354,24 @@ def make_tower() -> None:
     buildings = coll(f"{PREFIX}Tower")
     roof = coll(f"{PREFIX}RoofGear")
     width, depth = FOOTPRINT
-    loc = (0, 0, PAD_Z + HEIGHT * 0.5)
-    floor_h = HEIGHT / FLOORS
+    floor_h = floor_height()
     cols = max(3, int(width))
-
-    make_cube(f"{PREFIX}Body", loc, (width * 0.88, depth * 0.88, HEIGHT), buildings, "ST_Concrete")
+    core_w = width * 0.32
 
     for floor in range(1, FLOORS + 1):
-        band_z = PAD_Z + floor_h * (floor - 0.5)
+        core_z = floor_center_z(floor)
         make_cube(
-            f"{PREFIX}ShellBand_{floor}",
-            (0, 0, band_z),
-            (width, depth, floor_h * 0.96),
+            f"{PREFIX}CoreLift_{floor}",
+            (0, 0, core_z),
+            (core_w, core_w * 0.88, floor_h * 0.94),
             buildings,
-            "ST_SkyGlass",
+            "ST_Concrete",
         )
-        rib_z = PAD_Z + floor_h * floor
+
+    panel_th = 0.08
+    for floor in range(1, FLOORS + 1):
+        band_z = floor_center_z(floor)
+        rib_z = floor_ring_z(floor)
         make_cube(
             f"{PREFIX}RibBand_{floor}",
             (0, 0, rib_z),
@@ -332,8 +379,36 @@ def make_tower() -> None:
             buildings,
             "ST_LightMetal",
         )
-        window_row("ST_Windows", loc, width, depth, floor_h, floor, cols, buildings, outward_y=-1)
-        window_row("ST_N_Windows", loc, width, depth, floor_h, floor, cols, buildings, outward_y=1)
+        make_cube(
+            f"{PREFIX}CWPanel_{floor}_S",
+            (0, -(depth * 0.5 + panel_th * 0.5), band_z),
+            (width, panel_th, floor_h * 0.92),
+            buildings,
+            "ST_SkyGlass",
+        )
+        make_cube(
+            f"{PREFIX}CWPanel_{floor}_N",
+            (0, depth * 0.5 + panel_th * 0.5, band_z),
+            (width, panel_th, floor_h * 0.92),
+            buildings,
+            "ST_SkyGlass",
+        )
+        make_cube(
+            f"{PREFIX}CWPanel_{floor}_E",
+            (width * 0.5 + panel_th * 0.5, 0, band_z),
+            (panel_th, depth, floor_h * 0.92),
+            buildings,
+            "ST_SkyGlass",
+        )
+        make_cube(
+            f"{PREFIX}CWPanel_{floor}_W",
+            (-(width * 0.5 + panel_th * 0.5), 0, band_z),
+            (panel_th, depth, floor_h * 0.92),
+            buildings,
+            "ST_SkyGlass",
+        )
+        window_row("ST_Windows", width, depth, floor, cols, buildings, outward_y=-1)
+        window_row("ST_N_Windows", width, depth, floor, cols, buildings, outward_y=1)
 
     make_cube(f"{PREFIX}Roof", (0, 0, PAD_Z + HEIGHT + 0.12), (width * 0.92, depth * 0.92, 0.18), buildings, "ST_DarkMetal")
     make_cube(f"{PREFIX}Parapet", (0, 0, PAD_Z + HEIGHT + 0.32), (width, depth, 0.22), buildings, "ST_LightMetal")

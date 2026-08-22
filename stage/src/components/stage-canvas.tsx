@@ -665,7 +665,7 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=8");
+useGLTF.preload("/models/skyscraper.glb?v=11");
 
 export function StageCanvas({
   objects,
