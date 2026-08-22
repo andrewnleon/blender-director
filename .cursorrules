@@ -1,0 +1,21 @@
+# Cursor Rules — Orchestrator + slash commands
+
+**Default entry:** **/orcha** → `file:///.cursor/commands/orcha.md` → agent `file:///.cursor/agents/orchestrator.md`
+
+When these commands appear in the prompt, apply the matching workflow:
+
+- **/orcha [task]** → `file:///.cursor/commands/orcha.md` — coordinate specialists; Full vs Lean. Agent file stays `orchestrator.md`. Do **not** ship `.cursor/commands/orchestrator.md`.
+- **/plan [task]** → `file:///.cursor/commands/plan.md` — implementation plan before code (`agents/core/workflow.md`).
+- **/practical [task]** → `file:///.cursor/commands/practical.md` — UI work; practical-ui first.
+- **/diagnose** → `file:///.cursor/commands/diagnose.md` — errors, types, styling issues.
+- **/digest** → `file:///.cursor/commands/digest.md` — unknown / thin project context before plan or build.
+- **/evaluate** → `file:///.cursor/commands/evaluate.md` — requirements and architecture fit.
+- **/reflect** → `file:///.cursor/commands/reflect.md` — anti-patterns and performance review.
+
+## General project context
+
+- Rules: `file:///AGENTS.md`, `file:///.cursor/skills/`, `file:///.cursor/rules/`.
+- **Type safety:** no `as any`, `as unknown`, or `as unknown as T` — see `file:///.cursor/rules/type-safety.mdc`.
+- **UI:** `file:///.cursor/skills/practical-ui/SKILL.md` (primary — `/practical`); product chrome — `file:///.cursor/skills/app-ui/SKILL.md`; no redesign unless explicit (TASK_ROUTER No-Drift).
+- **Communication:** caveman always on (**ultra**) — `file:///.cursor/rules/caveman.mdc`, `file:///.cursor/skills/caveman/SKILL.md`.
+- Preserve comments and docstrings when editing.

@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "files": [
+    {
+      "file": "skyscraper.glb",
+      "ok": true,
+      "bytes": 334308,
+      "animations": 22,
+      "has_construct": false
+    }
+  ]
+}

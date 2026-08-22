@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "optionalPeers": {
+    "typescript": {
+      "ignoreMissing": true,
+      "allowedVersions": "*",
+      "description": "TypeScript is not required to install this stack. Host-app @typescript-eslint peer ranges (including TS 7) are ignored via pnpm-workspace.yaml."
+    },
+    "tailwindcss": {
+      "ignoreMissing": true,
+      "skill": "tailwind",
+      "description": "The tailwindcss npm package is optional. The bundled tailwind skill is docs-only and does not install Tailwind."
+    }
+  },
+  "marketplace": {
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "installDir": "vercel-react-best-practices",
+      "description": "Vercel React / Next.js performance and composition guidelines"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "skillPath": "skills/systematic-debugging/SKILL.md",
+      "installDir": "systematic-debugging",
+      "description": "Root-cause analysis workflow for bugs, test failures, and unexpected behavior"
+    },
+    "verification-before-completion": {
+      "source": "obra/superpowers",
+      "skillPath": "skills/verification-before-completion/SKILL.md",
+      "installDir": "verification-before-completion",
+      "description": "Evidence-based completion checks before claiming work is fixed, passing, or ready"
+    },
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "skillPath": "skills/brainstorming/SKILL.md",
+      "installDir": "brainstorming",
+      "description": "Structured discovery and design process for ambiguous features and behavior changes"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "skillPath": "skills/requesting-code-review/SKILL.md",
+      "installDir": "requesting-code-review",
+      "description": "Prepare focused implementation context and verification evidence for a code review"
+    },
+    "writing-skills": {
+      "source": "obra/superpowers",
+      "skillPath": "skills/writing-skills/SKILL.md",
+      "installDir": "writing-skills",
+      "description": "Create, edit, test, and maintain reusable agent skills with clear triggering guidance"
+    },
+    "owasp-security": {
+      "source": "hoodini/ai-agents-skills",
+      "skillPath": "skills/owasp-security/SKILL.md",
+      "installDir": "owasp-security",
+      "description": "OWASP Top 10 secure coding practices for reviews, APIs, auth, and vulnerability prevention"
+    },
+    "global-agent-guardrails": {
+      "source": "davidondrej/skills",
+      "skillPath": "skills/ops-and-setup/global-agent-guardrails/SKILL.md",
+      "installDir": "global-agent-guardrails",
+      "description": "Shared catastrophic-command guardrail guidance for AI coding agents, paired with a dangerous command denylist hook"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "installDir": "shadcn",
+      "description": "shadcn/ui component composition and patterns"
+    },
+    "tailwind": {
+      "source": "lombiq/tailwind-agent-skills",
+      "skillPath": "skills/tailwind-4-docs/SKILL.md",
+      "installDir": "tailwind",
+      "description": "Tailwind CSS v4 docs snapshot (installDir tailwind; upstream tailwind-4-docs). Docs-only — tailwindcss npm package is optional (see optionalPeers). heygen-com/hyperframes no longer ships a tailwind skill."
+    },
+    "next-best-practices": {
+      "source": "vendored",
+      "skillPath": ".cursor/skills/next-best-practices/SKILL.md",
+      "installDir": "next-best-practices",
+      "skipNpx": true,
+      "description": "Local pointer skill. Upstream next-best-practices was retired; use Next.js bundled docs + vercel-react-best-practices."
+    }
+  },
+  "optional": {
+    "ai-sdk": {
+      "source": "vercel-labs/agent-skills",
+      "skillPath": "skills/ai-sdk/SKILL.md",
+      "installDir": "ai-sdk",
+      "description": "Vercel AI SDK — streaming chat, tool calling, providers"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "installDir": "ui-ux-pro-max",
+      "description": "Redesign exploration only — on demand"
+    },
+    "check-pr": {
+      "source": "greptileai/skills",
+      "skillPath": "check-pr/SKILL.md",
+      "installDir": "check-pr",
+      "description": "PR review helper (Greptile-style)"
+    },
+    "blender-skills": {
+      "source": "arjun988/blender-skills",
+      "skillPath": ".claude/skills/blender-director/SKILL.md",
+      "installDir": "blender-director",
+      "skipNpx": true,
+      "description": "94-skill Blender production pack (copied into .cursor/skills). Re-copy from GitHub after cpt sync if starter overlay removed them."
+    },
+    "3d-building-blender": {
+      "source": "local",
+      "skillPath": ".cursor/skills/3d-building-blender/SKILL.md",
+      "installDir": "3d-building-blender",
+      "skipNpx": true,
+      "description": "Project skill for blender_workshop.blend, construction animation, and stage glTF export"
+    }
+  }
+}

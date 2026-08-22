@@ -1,0 +1,92 @@
+---
+description: Naming conventions for files, folders, variables, and git commits across the codebase.
+alwaysApply: true
+---
+
+# Naming Conventions
+
+## Purpose
+
+Improve readability, clarify intent, reduce bugs, enforce predictability, enhance maintainability, and support clean code practices.
+
+## General Rules
+
+- Variables and functions: **camelCase** — `isRegistered`, `userList`
+- Booleans must read like questions: `isVisible`, `hasAccess`, `canSubmit`
+- No vague names: `data`, `info`, `temp` are banned
+
+## File and Folder Naming
+
+| Type | Convention | Example |
+|---|---|---|
+| Folders | `kebab-case` | `class-search`, `home-page`, `alerts` |
+| React Components | `PascalCase` | `ClassSearch.tsx`, `HomePage.tsx` |
+| Utility / Hook files | `camelCase` | `useData.ts`, `fetchHelper.ts` |
+| Constants / Enums | `UPPER_SNAKE_CASE` | `API_ENDPOINTS.ts`, `ENV_KEYS.ts` |
+
+## Variable Naming
+
+### Booleans
+
+| Prefix | Intent | Example |
+|---|---|---|
+| `is` | State or identity | `isLoading`, `isActive` |
+| `has` | Ownership or presence | `hasAccess`, `hasErrors` |
+| `can` | Ability or permission | `canEdit`, `canSubmit` |
+| `should` | Recommendation or decision | `shouldRender`, `shouldRetry` |
+| `show` / `hide` | User interaction–driven visibility | `showModal`, `hideModal` |
+
+### Arrays / Lists
+
+| Format | Use | Example |
+|---|---|---|
+| Plural noun | Preferred | `users`, `products`, `classes` |
+| `xList` | Explicit list reference | `userList`, `courseList` |
+| `xArray` | Type disambiguation | `errorArray`, `idArray` |
+
+### Numeric / Count
+
+| Format | Use | Example |
+|---|---|---|
+| Count / Total | Total items | `totalUsers`, `courseCount` |
+| Index | Position or loop | `index`, `currentIndex` |
+| Limit | Min / max threshold | `maxAttempts`, `minScore` |
+
+### Objects
+
+| Format | Use | Example |
+|---|---|---|
+| Entity object | Single model | `user`, `settings`, `formData` |
+| Grouped values | Related config fields | `studentDetails`, `accountInfo` |
+| API response | Data from backend | `response`, `apiResponse`, `classScheduleData` |
+
+### Strings
+
+| Format | Use | Example |
+|---|---|---|
+| Plain string | UI text or messages | `pageTitle`, `errorMessage`, `labelText` |
+| Identifier | Unique / reference value | `userId`, `sessionToken`, `classCode` |
+| Status / type key | Enum or type indicator | `userRole`, `statusCode`, `paymentType` |
+| Formatted output | Logic or format result | `formattedDate`, `displayName` |
+
+## Git Commit Format
+
+Pattern: `<type>: <storyId> <description>`
+
+Example: `fix: 223981 corrected button logic`
+
+- No special characters other than the colon separator.
+- Always include the user story ID for traceability.
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature for the user |
+| `fix` | Bug fix for the user |
+| `refactor` | Restructures code without changing behavior |
+| `perf` | Performance improvement |
+| `style` | Formatting, whitespace, missing semicolons — no logic change |
+| `test` | Adding or correcting tests — no production code change |
+| `docs` | Documentation only |
+| `build` | Build tools, CI pipeline, dependencies, project version |
+| `ops` | Infrastructure, deployment, backup, recovery |
+| `chore` | Miscellaneous (e.g., `.gitignore` updates) |

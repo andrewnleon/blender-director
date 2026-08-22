@@ -1,0 +1,225 @@
+{
+  "runtime": {
+    "primaryFramework": "nextjs-app-router",
+    "styleMode": "caveman-ultra"
+  },
+  "agentPersonalization": {
+    "orchestrator": {
+      "commandName": "orcha",
+      "commandFile": ".cursor/commands/orcha.md",
+      "displayName": "Orcha",
+      "workflows": {
+        "reviewChanges": {
+          "enabled": true,
+          "triggerExample": "/orcha review my changes",
+          "evaluationMode": "maestro-evaluate",
+          "responseStyle": "caveman-low-token",
+          "delegateReviewer": "orchestrator"
+        }
+      }
+    }
+  },
+  "modelPreferences": {
+    "defaultModel": "auto",
+    "autoPolicy": {
+      "enforceLowerTierOnly": true,
+      "allowedModels": [
+        "gpt-4o-mini",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "claude-haiku-4",
+        "gemini-2.5-flash"
+      ],
+      "defaultModel": "gpt-4.1-mini"
+    },
+    "subagents": {
+      "orchestrator": "auto",
+      "product-manager": "auto",
+      "lead-engineer": "auto",
+      "ui-engineer": "auto",
+      "api-engineer": "auto",
+      "data-engineer": "auto",
+      "qa-engineer": "auto",
+      "ai-architect": "auto",
+      "performance-optimizer": "auto",
+      "deployment-expert": "auto",
+      "ci-investigator": "auto",
+      "docs-researcher": "auto",
+      "security-review": "auto",
+      "generalPurpose": "auto",
+      "cursor-guide": "auto",
+      "security": "auto",
+      "explore": "auto",
+      "bugbot": "auto",
+      "shell": "auto"
+    }
+  },
+  "universalityVerification": {
+    "planArtifactsDir": ".maestro/plans",
+    "enforcementLevel": "warn",
+    "requiredPlanFields": [
+      "stack_profile",
+      "profile_source",
+      "rationale",
+      "context_intake"
+    ]
+  },
+  "contractChecks": [
+    {
+      "file": ".cursor/commands/orcha.md",
+      "required": [
+        "# Orchestrator [task",
+        "review my changes",
+        "Maestro",
+        "Caveman",
+        "Tester lens",
+        "Developer lens",
+        "Senior lead lens",
+        "Deterministic subagent routing",
+        "pick exactly one primary owner",
+        "Tie-break",
+        "Lean rule",
+        "Shell safety",
+        "outside workspace",
+        "Review delegation gates",
+        "Risk score >= 3",
+        "Confidence < 0.75",
+        "Delegation audit output (required)",
+        "Caveman persistence rule",
+        "keep Caveman style active",
+        "Model preference routing",
+        "modelPreferences.subagents[selectedSubagent]",
+        "model: \"<targetModel>\"",
+        "Model used:"
+      ]
+    },
+    {
+      "file": "prompts/orchestrator.prompt.md",
+      "required": [
+        "/orcha",
+        "/orcha review my changes",
+        "Maestro",
+        "Caveman",
+        "Tester lens",
+        "Developer lens",
+        "Senior lead lens",
+        "keep Caveman style active",
+        "stop caveman",
+        "normal mode",
+        "Review delegation gates",
+        "Risk score >= 3",
+        "Confidence < 0.75",
+        "Delegation audit output (required)",
+        "modelPreferences.subagents[primaryOwner]",
+        "model: \"<resolvedModel>\"",
+        "Model used:"
+      ]
+    },
+    {
+      "file": ".cursor/commands/plan.md",
+      "required": [
+        "## Required output (must include all sections)",
+        "## Stack Profile section contract",
+        "stack_profile",
+        "profile_source",
+        "rationale",
+        "context_intake"
+      ]
+    },
+    {
+      "file": ".cursor/playbooks/core/STACK_PROFILES.md",
+      "required": [
+        "Primary framework for this stack: Next.js App Router",
+        "Context intake",
+        "Never use an unconfirmed default profile",
+        "selected",
+        "stack_profile"
+      ]
+    },
+    {
+      "file": ".cursor/agents/core/workflow.md",
+      "required": [
+        ".maestro/context.md",
+        "Select one stack profile",
+        "Lean must also state selected",
+        "stack_profile",
+        "rationale"
+      ]
+    },
+    {
+      "file": ".cursor/agents/orchestrator.md",
+      "required": [
+        "Select exactly one",
+        "stack_profile",
+        ".maestro/context.md",
+        "Stack Profile",
+        "explicit or inferred",
+        "one-line rationale",
+        "shell-safety.mdc",
+        "outside workspace boundary",
+        "Load order contract for Full planning: brainstorming",
+        "All user replies"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "required": ["### Universality Score", "Score:", "Gate status:"],
+      "forbidden": ["__ / 100", "Grade __", "pass or fail"]
+    },
+    {
+      "file": "README.md",
+      "required": [
+        "/orcha",
+        "/orcha init maestro context",
+        "/orcha review my changes",
+        "/plan",
+        "stop caveman",
+        "normal mode",
+        "/diagnose",
+        "/digest",
+        "/evaluate",
+        "/reflect"
+      ]
+    },
+    {
+      "file": ".cursor/agents/README.md",
+      "required": [
+        "## Agents",
+        "Orchestrator",
+        "Full-mode feature planning",
+        "Product Manager",
+        "requirements",
+        "UI Engineer",
+        "no redesign without approval",
+        "API Engineer",
+        "Routes, server actions, auth",
+        "Data Engineer",
+        "Data structures, data integrations, migrations",
+        "QA Engineer",
+        "Vitest, Playwright, feature testing, validation, bug identification, code review",
+        "Security Engineer",
+        "CSP, secrets, auth hardening, front-end security"
+      ]
+    },
+    {
+      "file": ".cursor/agents/SUBAGENT_MAP.md",
+      "required": [
+        "Deterministic routing policy for /orcha",
+        "exactly one primary owner",
+        "Tie-break",
+        "Lean no-delegate",
+        "Review trigger matrix",
+        "risk score >= 3",
+        "confidence < 0.75"
+      ]
+    },
+    {
+      "file": ".cursor/rules/shell-safety.mdc",
+      "required": [
+        "Workspace boundary is mandatory",
+        "Never run destructive commands that target paths outside the current workspace",
+        "If path scope is ambiguous, stop and ask user for confirmation with exact path"
+      ]
+    }
+  ]
+}

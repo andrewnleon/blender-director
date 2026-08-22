@@ -1,0 +1,25 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@andrewnleon/cursor-agent-starter':
+        specifier: git+https://github.com/andrewnleon/cursor-agent-starter.git
+        version: git+https://github.com/andrewnleon/cursor-agent-starter.git#9dc47ad34785a9e63c314296d6958e068ab86bb0
+
+packages:
+
+  '@andrewnleon/cursor-agent-starter@git+https://github.com/andrewnleon/cursor-agent-starter.git#9dc47ad34785a9e63c314296d6958e068ab86bb0':
+    resolution: {commit: 9dc47ad34785a9e63c314296d6958e068ab86bb0, repo: https://github.com/andrewnleon/cursor-agent-starter.git, type: git}
+    version: 0.3.0
+    engines: {node: '>=20'}
+    hasBin: true
+
+snapshots:
+
+  '@andrewnleon/cursor-agent-starter@git+https://github.com/andrewnleon/cursor-agent-starter.git#9dc47ad34785a9e63c314296d6958e068ab86bb0': {}

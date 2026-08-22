@@ -1,0 +1,16 @@
+---
+description: Execute 3D work in Blender via MCP; use blender-director and project 3d-building-blender skill.
+globs: **/*.{blend,py}
+alwaysApply: true
+---
+
+# Blender 3D (this project)
+
+For any 3D / Blender / modeling / construction-scene request:
+
+1. Read `.cursor/skills/3d-building-blender/SKILL.md`
+2. Start with `.cursor/skills/blender-director/SKILL.md` for pipeline routing
+3. Drive Blender through MCP tools — never give click-by-click UI tutorials
+4. After mesh or lighting changes, take a viewport screenshot before claiming done
+5. Working file is `projects/workshop/workshop.blend`; per-building files under `projects/`; animation contract is `animate_construction.py`
+6. Web viewer lives in `stage/` — export glTF there, do not rebuild the building in Three.js unless asked

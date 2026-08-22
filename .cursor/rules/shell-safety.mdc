@@ -1,0 +1,25 @@
+---
+description: Hard safety guardrails for shell usage and destructive operations
+alwaysApply: true
+---
+
+# Shell safety
+
+Workspace boundary is mandatory.
+
+1. Never run destructive commands that target paths outside the current workspace.
+2. Never run broad delete operations against drive roots or user home directories.
+3. Never use wildcard or recursive delete commands unless path is confirmed inside workspace and explicitly approved.
+4. Before delete or move operations, verify target path is inside workspace and print target path.
+5. If path scope is ambiguous, stop and ask user for confirmation with exact path.
+
+Forbidden examples (outside workspace):
+
+- `Remove-Item -Recurse -Force C:\*`
+- `del /s /q C:\*`
+- `rm -rf /`
+
+Safe pattern:
+
+- Resolve workspace root first, then require target to be a child path.
+- Prefer non-destructive alternatives (archive, dry-run list) when possible.

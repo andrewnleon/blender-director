@@ -1,0 +1,10 @@
+---
+description: Ban unsafe type assertions; prefer narrowing and schemas.
+alwaysApply: true
+---
+
+# Type safety — no unsafe assertions
+
+Do **not** use: `as any`, `as unknown`, `as never`, or double assertions like `as unknown as T`.
+
+Prefer: narrowing, Zod at boundaries, proper generics, `catch (error: unknown)` then narrow.

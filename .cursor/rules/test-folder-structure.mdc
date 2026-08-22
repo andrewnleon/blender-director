@@ -1,0 +1,17 @@
+---
+description: Vitest tests under src/__tests__/__folder__/ only.
+alwaysApply: true
+---
+
+# Unit test folder structure
+
+All Vitest tests live under **`src/__tests__/__folder__/`** — never colocated beside source.
+
+| Source | Tests |
+|--------|-------|
+| `src/lib/…` | `src/__tests__/__lib__/…` |
+| `src/services/…` | `src/__tests__/__services__/…` |
+| `src/components/shared/ui/…` | `src/__tests__/__ui__/…` |
+| `src/app/…` | `src/__tests__/__app__/…` |
+
+See `.cursor/skills/testing/SKILL.md`.

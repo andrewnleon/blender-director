@@ -1,0 +1,13 @@
+{
+  "name": "3d-building",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Blender workshop + web stage for 3D building work",
+  "scripts": {
+    "cpt": "cpt",
+    "skills:add": "cpt manage-skills add"
+  },
+  "devDependencies": {
+    "@andrewnleon/cursor-agent-starter": "git+https://github.com/andrewnleon/cursor-agent-starter.git"
+  }
+}
