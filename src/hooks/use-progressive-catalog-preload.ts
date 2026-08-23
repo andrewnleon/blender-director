@@ -2,56 +2,69 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { preloadCatalogGlbById } from "@/hooks/use-catalog-glb-preload";
+import { getCatalogGlbUrl } from "@/lib/catalog";
+import {
+  getBackgroundCatalogIds,
+  getFirstWaveCatalogIds,
+  STAGE_BACKGROUND_CONCURRENCY,
+} from "@/lib/stage-preload";
 
 type UseProgressiveCatalogPreloadOptions = {
   /** Loaded first — hover target, stream hero, etc. */
   priorityCatalogIds?: readonly string[];
   /** Yard lots restored from session or placed on grid. */
   catalogIds?: readonly string[];
-  /** Delay between starting each preload (ms). */
+  /** Delay between starting each preload (ms). Unused when concurrency is set. */
   staggerMs?: number;
+  backgroundConcurrency?: number;
 };
 
-function uniqueCatalogIds(ids: readonly string[]): string[] {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
-  for (const catalogId of ids) {
-    if (seen.has(catalogId)) {
-      continue;
-    }
-    seen.add(catalogId);
-    ordered.push(catalogId);
+function warmCatalogGlb(catalogId: string): Promise<void> {
+  const url = getCatalogGlbUrl(catalogId);
+  preloadCatalogGlbById(catalogId);
+  if (!url) {
+    return Promise.resolve();
   }
-  return ordered;
+  return fetch(url, { credentials: "same-origin" }).then(() => undefined);
 }
 
 /**
- * Stagger GLB preloads so session restore does not fetch every pack at once.
- * Returns catalog ids safe to mount (priority first, then one-by-one).
+ * First-wave ids mount immediately (boot gate already parsed them).
+ * Background pack GLBs stay at placeholders until HTTP cache is warm.
  */
 export function useProgressiveCatalogPreload(
   options: UseProgressiveCatalogPreloadOptions,
 ): ReadonlySet<string> {
-  const { priorityCatalogIds = [], catalogIds = [], staggerMs = 48 } = options;
-  const queueKey = useMemo(() => {
-    const queue = uniqueCatalogIds([...priorityCatalogIds, ...catalogIds]);
-    return queue.join("\0");
-  }, [catalogIds, priorityCatalogIds]);
+  const {
+    priorityCatalogIds = [],
+    catalogIds = [],
+    backgroundConcurrency = STAGE_BACKGROUND_CONCURRENCY,
+  } = options;
+  const firstWaveKey = useMemo(
+    () => getFirstWaveCatalogIds(priorityCatalogIds).join("\0"),
+    [priorityCatalogIds],
+  );
+  const backgroundKey = useMemo(
+    () => getBackgroundCatalogIds(priorityCatalogIds, catalogIds).join("\0"),
+    [catalogIds, priorityCatalogIds],
+  );
 
   const [readyCatalogIds, setReadyCatalogIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
+    () => new Set(getFirstWaveCatalogIds(priorityCatalogIds)),
   );
 
   useEffect(() => {
-    const queue = queueKey.length > 0 ? queueKey.split("\0") : [];
-    if (queue.length === 0) {
-      setReadyCatalogIds(new Set());
-      return;
-    }
+    const firstWaveIds = firstWaveKey.length > 0 ? firstWaveKey.split("\0") : [];
+    const backgroundIds =
+      backgroundKey.length > 0 ? backgroundKey.split("\0") : [];
 
     let cancelled = false;
-    let index = 0;
-    const ready = new Set<string>();
+    const ready = new Set(firstWaveIds);
+    setReadyCatalogIds(new Set(ready));
+
+    if (backgroundIds.length === 0) {
+      return;
+    }
 
     function markReady(catalogId: string) {
       if (cancelled) {
@@ -61,23 +74,35 @@ export function useProgressiveCatalogPreload(
       setReadyCatalogIds(new Set(ready));
     }
 
-    function preloadNext() {
-      if (cancelled || index >= queue.length) {
-        return;
+    let nextIndex = 0;
+    const workerCount = Math.max(1, backgroundConcurrency);
+
+    async function runWorker() {
+      while (!cancelled && nextIndex < backgroundIds.length) {
+        const catalogId = backgroundIds[nextIndex];
+        nextIndex += 1;
+        if (!catalogId) {
+          break;
+        }
+        try {
+          await warmCatalogGlb(catalogId);
+        } catch {
+          preloadCatalogGlbById(catalogId);
+        }
+        markReady(catalogId);
       }
-      const catalogId = queue[index];
-      index += 1;
-      preloadCatalogGlbById(catalogId);
-      markReady(catalogId);
-      window.setTimeout(preloadNext, staggerMs);
     }
 
-    preloadNext();
+    void Promise.all(
+      Array.from({ length: Math.min(workerCount, backgroundIds.length) }, () =>
+        runWorker(),
+      ),
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [queueKey, staggerMs]);
+  }, [backgroundConcurrency, backgroundKey, firstWaveKey]);
 
   return readyCatalogIds;
 }
