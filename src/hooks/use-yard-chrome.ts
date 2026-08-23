@@ -7,13 +7,11 @@ import { useAgentYard } from "@/hooks/use-agent-yard";
 import { useDynamicScene } from "@/hooks/use-dynamic-scene";
 import { useLibraryExclusions } from "@/hooks/use-library-exclusions";
 import {
+  clearLegacyYardObjectsFromSession,
   DEFAULT_PLACE_CATALOG_ID,
   readPlaceCatalogIdFromSession,
-  readYardObjectsFromSession,
   writePlaceCatalogIdToSession,
-  writeYardObjectsToSession,
 } from "@/lib/yard-session";
-import type { PlacedObject } from "@/lib/catalog";
 
 const SANDBOX_MODE_SESSION_KEY = "openclaw-yard.sandbox-mode";
 
@@ -37,9 +35,6 @@ function writeSandboxModeToSession(isEnabled: boolean): void {
 }
 
 export function useYardChrome() {
-  const [objects, setObjects] = useState<PlacedObject[]>(() =>
-    readYardObjectsFromSession(),
-  );
   const [placeCatalogId, setPlaceCatalogId] = useState<string | null>(() =>
     readPlaceCatalogIdFromSession(),
   );
@@ -51,7 +46,7 @@ export function useYardChrome() {
     null,
   );
   const libraryExclusions = useLibraryExclusions();
-  const { excludedIds } = libraryExclusions;
+  const { excludedIds, resetExclusions } = libraryExclusions;
   const { isDynamicScene, toggleDynamicScene, sceneVariant, selectSceneVariant } =
     useDynamicScene();
   const agentStream = useAgentStream({ onEvent: setLastStreamEvent });
@@ -61,6 +56,10 @@ export function useYardChrome() {
     lastStreamEvent,
   });
 
+  useEffect(() => {
+    clearLegacyYardObjectsFromSession();
+  }, []);
+
   const toggleSandboxMode = useCallback(() => {
     setIsSandboxMode((enabled) => {
       const nextEnabled = !enabled;
@@ -68,10 +67,6 @@ export function useYardChrome() {
       return nextEnabled;
     });
   }, []);
-
-  useEffect(() => {
-    writeYardObjectsToSession(objects);
-  }, [objects]);
 
   useEffect(() => {
     writePlaceCatalogIdToSession(placeCatalogId);
@@ -84,19 +79,12 @@ export function useYardChrome() {
   }, [excludedIds, placeCatalogId]);
 
   const handleResetYard = useCallback(() => {
-    setObjects([]);
     setSelectedId(null);
     setPlaceCatalogId(DEFAULT_PLACE_CATALOG_ID);
-  }, []);
-
-  const handleRemoveObject = useCallback((objectId: string) => {
-    setObjects((prev) => prev.filter((object) => object.id !== objectId));
-    setSelectedId((currentId) => (currentId === objectId ? null : currentId));
-  }, []);
+    resetExclusions();
+  }, [resetExclusions]);
 
   return {
-    objects,
-    setObjects,
     placeCatalogId,
     setPlaceCatalogId,
     selectedId,
@@ -112,7 +100,7 @@ export function useYardChrome() {
     selectSceneVariant,
     agentStream,
     agentYard,
+    lastStreamEvent,
     handleResetYard,
-    handleRemoveObject,
   };
 }

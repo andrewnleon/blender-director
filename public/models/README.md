@@ -4,9 +4,10 @@ Put `.glb` / `.gltf` files here. They are served from `/models/<filename>`.
 
 ## Active export
 
-| GLB | Source blend |
-|-----|----------------|
-| `operations-center.glb` | `projects/operations-center/operations-center.blend` — orchestrator HQ; `construct` clip. |
+| GLB | Source blend | Notes |
+|-----|----------------|-------|
+| `skyscraper.glb` | `projects/skyscraper/skyscraper.blend` | City macro; `scheduled` tier; **compress before deploy** (~12 MB today) |
+| `operations-center.glb` | `projects/operations-center/operations-center.blend` | Orchestrator HQ; `construct` clip |
 
 Palette entries live in `src/lib/construction/asset-registry.ts`.
 

@@ -7,6 +7,9 @@ import {
   constructionStageForCatalog,
   primaryAgentStatus,
   progressFromStage,
+  progressFromTaskStatuses,
+  tasksForAgent,
+  tasksForStation,
 } from "@/lib/construction/progress-map";
 import type { ConstructionState } from "@/lib/construction/types";
 
@@ -25,7 +28,7 @@ export type ConstructDriveMode = "auto" | "scrub";
  * yard uses this helper only (never library layout / replay rules).
  *
  * Yard always scrubs: bind pose at progress 0 on page load / idle map;
- * live or frozen construction maps advance progress without auto-playing clips.
+ * live stream or preview mock maps advance progress without auto-playing clips.
  * Catalog id / state kept for call-site stability (progress read elsewhere).
  */
 export function constructDriveModeForCatalog(
@@ -46,8 +49,26 @@ export function constructionStateForCatalog(
     return { stage: 3, progress: 1, isLive };
   }
 
+  let relevantTasks: AgentTask[] = [];
+  switch (definition.bindMode) {
+    case "all-tasks":
+      relevantTasks = [...tasks];
+      break;
+    case "station-tasks":
+      relevantTasks = tasksForStation(definition.stationId, agents, tasks);
+      break;
+    case "agent-tasks":
+      relevantTasks = tasksForAgent(definition.agentId, tasks);
+      break;
+    default:
+      relevantTasks = [...tasks];
+  }
+
   const stage = constructionStageForCatalog(catalogId, agents, tasks);
-  const progress = progressFromStage(stage);
+  const progress =
+    relevantTasks.length > 0
+      ? progressFromTaskStatuses(relevantTasks.map((task) => task.status))
+      : progressFromStage(stage);
   const agentStatus = primaryAgentStatus(definition.agentIds, agents);
 
   return {

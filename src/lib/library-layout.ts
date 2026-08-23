@@ -4,6 +4,7 @@ import {
   type CatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
+import { BUILDING_DEFINITIONS } from "@/lib/construction/asset-registry";
 
 /** Columns before wrapping to the next row. */
 export const LIBRARY_COLUMN_COUNT = 4;
@@ -21,6 +22,40 @@ export function getLibraryCatalogItems(
   return CATALOG.filter(
     (item) => item.inLibrary === true && !excludedCatalogIds.has(item.id),
   );
+}
+
+const HERO_CATALOG_RANK = new Map(
+  BUILDING_DEFINITIONS.filter(
+    (definition) => definition.inLibrary && definition.url,
+  ).map((definition, index) => [definition.catalogId, index]),
+);
+
+/** Hero buildings (registry order) before pack exports — first grid row + preload wave. */
+export function sortLibraryItemsHeroFirst(
+  items: readonly CatalogItem[],
+): CatalogItem[] {
+  return [...items].sort((left, right) => {
+    const leftRank = HERO_CATALOG_RANK.get(left.id);
+    const rightRank = HERO_CATALOG_RANK.get(right.id);
+    if (leftRank !== undefined && rightRank !== undefined) {
+      return leftRank - rightRank;
+    }
+    if (leftRank !== undefined) {
+      return -1;
+    }
+    if (rightRank !== undefined) {
+      return 1;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+/** Catalog ids to warm first — heroes, then remaining grid order. */
+export function getLibraryPreloadPriority(
+  items: readonly CatalogItem[],
+): string[] {
+  const orderedItems = sortLibraryItemsHeroFirst(items);
+  return orderedItems.map((item) => item.id);
 }
 
 function getFootprint(item: CatalogItem) {
@@ -82,7 +117,7 @@ export function buildLibraryPlacements(
     return [];
   }
 
-  const rows = buildLibraryRows(items);
+  const rows = buildLibraryRows(sortLibraryItemsHeroFirst(items));
   const rowGap = LIBRARY_CELL_PADDING;
   const totalDepth =
     rows.reduce((sum, row) => sum + row.rowDepth, 0) +

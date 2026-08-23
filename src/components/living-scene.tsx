@@ -18,6 +18,8 @@ import {
   type PointLight,
   type ShaderMaterial,
 } from "three";
+import type { AgentStatus } from "@/types/openclaw";
+import type { BuildingStage } from "@/lib/construction/types";
 import { LivingWeather } from "@/components/living-weather";
 import {
   DAYLIGHT_LIGHTING,
@@ -202,6 +204,106 @@ export function OccupancyGlow({
       color="#d8e0ea"
       intensity={0}
       distance={8}
+      decay={2}
+    />
+  );
+}
+
+const TRAFFIC_ACTIVE_STATUSES = new Set<AgentStatus>(["working", "thinking"]);
+const TRAFFIC_ALERT_STATUSES = new Set<AgentStatus>(["blocked", "error"]);
+
+/** Live OpenClaw traffic — accent pulse on staged agent stations. */
+export function AgentStationTraffic({
+  enabled,
+  accent,
+  agentStatus,
+  stage,
+  root,
+}: {
+  enabled: boolean;
+  accent: string;
+  agentStatus?: AgentStatus;
+  stage: BuildingStage;
+  root: Object3D;
+}) {
+  const lightRef = useRef<PointLight>(null);
+  const accentColor = useMemo(() => new Color(accent), [accent]);
+  const position = useMemo(() => {
+    const box = new Box3().setFromObject(root);
+    if (box.isEmpty()) {
+      return [0, 4, 0] as [number, number, number];
+    }
+    const center = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+    return [center.x, Math.max(2.4, center.y + size.y * 0.55), center.z] as [
+      number,
+      number,
+      number,
+    ];
+  }, [root]);
+  const craneTargets = useMemo(() => {
+    const sway: SwayTarget[] = [];
+    let phase = 0;
+    root.traverse((child) => {
+      if (!/crane/i.test(child.name)) {
+        return;
+      }
+      sway.push({
+        object: child,
+        baseRotationY: child.rotation.y,
+        baseRotationZ: child.rotation.z,
+        phase,
+      });
+      phase += 1;
+    });
+    return sway;
+  }, [root]);
+  const restoredRef = useRef(true);
+
+  useFrame((state) => {
+    const light = lightRef.current;
+    const isLiveTraffic =
+      enabled &&
+      stage > 0 &&
+      agentStatus !== undefined &&
+      (TRAFFIC_ACTIVE_STATUSES.has(agentStatus) ||
+        TRAFFIC_ALERT_STATUSES.has(agentStatus));
+    if (!light) {
+      return;
+    }
+    if (!isLiveTraffic) {
+      light.intensity = 0;
+      if (!restoredRef.current) {
+        for (const target of craneTargets) {
+          target.object.rotation.y = target.baseRotationY;
+          target.object.rotation.z = target.baseRotationZ;
+        }
+        restoredRef.current = true;
+      }
+      return;
+    }
+    restoredRef.current = false;
+    const time = state.clock.elapsedTime;
+    const isAlert = TRAFFIC_ALERT_STATUSES.has(agentStatus);
+    light.color.copy(accentColor);
+    light.intensity = isAlert
+      ? 0.1
+      : 0.06 + Math.sin(time * 2.2) * 0.035;
+    for (const target of craneTargets) {
+      target.object.rotation.y =
+        target.baseRotationY + Math.sin(time * 0.9 + target.phase) * 0.05;
+      target.object.rotation.z =
+        target.baseRotationZ + Math.sin(time * 1.1 + target.phase * 1.2) * 0.025;
+    }
+  });
+
+  return (
+    <pointLight
+      ref={lightRef}
+      position={position}
+      color={accent}
+      intensity={0}
+      distance={14}
       decay={2}
     />
   );

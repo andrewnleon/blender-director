@@ -15,7 +15,7 @@ SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
-from gltf_export_options import base_gltf_export_kwargs
+from gltf_export_options import base_gltf_export_kwargs, skyscraper_gltf_export_kwargs
 
 PROJECTS = os.path.join(ROOT, "projects")
 
@@ -48,22 +48,44 @@ EXPORTS = [
         "rest_frame": 1,
         "export_animations": True,
         "mesh_prefix": "ST_",
+        "export_kwargs": skyscraper_gltf_export_kwargs(),
     },
 
     {
-
         "building_id": "operations-center",
-
         "filename": "operations-center.glb",
-
         "rest_frame": 1,
-
         "export_animations": True,
-
         "mesh_prefix": "OC_",
-
     },
-
+    {
+        "building_id": "research-center",
+        "filename": "research-center.glb",
+        "rest_frame": 1,
+        "export_animations": True,
+        "mesh_prefix": "RC_",
+    },
+    {
+        "building_id": "development-center",
+        "filename": "development-center.glb",
+        "rest_frame": 1,
+        "export_animations": True,
+        "mesh_prefix": "DC_",
+    },
+    {
+        "building_id": "qa-center",
+        "filename": "qa-center.glb",
+        "rest_frame": 1,
+        "export_animations": True,
+        "mesh_prefix": "QA_",
+    },
+    {
+        "building_id": "deploy-pad",
+        "filename": "deploy-pad.glb",
+        "rest_frame": 1,
+        "export_animations": True,
+        "mesh_prefix": "DP_",
+    },
 ]
 
 
@@ -298,8 +320,15 @@ def export_building(
 
     out_path = os.path.join(OUT_DIR, filename)
 
+    spec_kwargs = next(
+        (item.get("export_kwargs") for item in EXPORTS if item["building_id"] == building_id),
+        None,
+    )
+    base_kwargs = spec_kwargs or base_gltf_export_kwargs(
+        export_animations=export_animations,
+    )
     export_kwargs = {
-        **base_gltf_export_kwargs(export_animations=export_animations),
+        **base_kwargs,
         "filepath": out_path,
         "collection": coll_name,
         "use_active_collection_with_nested": True,

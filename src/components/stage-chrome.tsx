@@ -73,6 +73,11 @@ type StageChromeProps = {
   onStreamToggle: () => void;
   isStreamLive: boolean;
   streamFetchError: string | null;
+  lastStreamEventAt?: string | null;
+  activeStationLabels?: readonly string[];
+  agentCount?: number;
+  taskCount?: number;
+  isStreamFrozen?: boolean;
   placeCatalogId: string | null;
   onPlaceCatalogIdChange: (catalogId: string | null) => void;
   excludedCatalogIds: readonly string[];
@@ -104,6 +109,11 @@ export function StageChrome({
   onStreamToggle,
   isStreamLive,
   streamFetchError,
+  lastStreamEventAt = null,
+  activeStationLabels = [],
+  agentCount = 0,
+  taskCount = 0,
+  isStreamFrozen = false,
   placeCatalogId,
   onPlaceCatalogIdChange,
   excludedCatalogIds,
@@ -205,6 +215,11 @@ export function StageChrome({
           onStreamToggle={onStreamToggle}
           isStreamLive={isStreamLive}
           streamFetchError={streamFetchError}
+          lastStreamEventAt={lastStreamEventAt}
+          activeStationLabels={activeStationLabels}
+          agentCount={agentCount}
+          taskCount={taskCount}
+          isStreamFrozen={isStreamFrozen}
           panelId={controlsPanelId}
           onClose={closeControls}
         />

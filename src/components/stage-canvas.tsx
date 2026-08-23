@@ -39,6 +39,7 @@ import {
   type Object3D,
 } from "three";
 import { RoofPool } from "@/components/roof-pool";
+import { SiteKitSourceProvider } from "@/components/site-kit-provider";
 import { SkyscraperSiteKit } from "@/components/skyscraper-site-kit";
 import { LivingMountains } from "@/components/living-mountains";
 import { LivingTrees } from "@/components/living-trees";
@@ -52,6 +53,7 @@ import {
   LIFE_CLIP_NAME,
   LivingEnvironmentDriver,
   LivingObjectEffects,
+  AgentStationTraffic,
   OccupancyGlow,
 } from "@/components/living-scene";
 import { YardGrid } from "@/components/yard-grid";
@@ -96,6 +98,7 @@ import {
   libraryConstructPlayback,
 } from "@/lib/construction/driver";
 import type { ConstructClock, ConstructionState } from "@/lib/construction/types";
+import type { AgentStatus } from "@/types/openclaw";
 import {
   applyHollowCompleteVisibility,
   isHollowCompleteState,
@@ -112,8 +115,10 @@ import {
   measureAuthoredBounds,
   shouldMountSiteKit,
   writeConstructClock,
+  type AuthoredBounds,
 } from "@/lib/construction/site-kit";
 import { canPlaceAt } from "@/lib/placement-collision";
+import { getBuildingDefinition } from "@/lib/construction/asset-registry";
 
 type StageCanvasProps = {
   objects: PlacedObject[];
@@ -753,9 +758,11 @@ function RelayBeacon({ accent }: { accent: string }) {
 function GlbModel({
   url,
   isDynamicScene,
+  onAuthoredBoundsReady,
 }: {
   url: string;
   isDynamicScene: boolean;
+  onAuthoredBoundsReady?: (bounds: AuthoredBounds) => void;
 }) {
   const { scene } = useGLTF(url);
   const root = useMemo(() => {
@@ -763,6 +770,9 @@ function GlbModel({
     clone.traverse(prepareAssetMesh);
     return clone;
   }, [scene]);
+  useLayoutEffect(() => {
+    onAuthoredBoundsReady?.(measureAuthoredBounds(root));
+  }, [onAuthoredBoundsReady, root]);
   return (
     <Center top>
       <primitive object={root} />
@@ -941,6 +951,8 @@ function AnimatedGlb({
   constructClockRef,
   onHollowCompleteChange,
   onConstructReplayFinished,
+  onAuthoredBoundsReady,
+  agentTraffic,
 }: {
   url: string;
   clip: string;
@@ -954,6 +966,13 @@ function AnimatedGlb({
   constructClockRef?: RefObject<ConstructClock>;
   onHollowCompleteChange?: (isHollowComplete: boolean) => void;
   onConstructReplayFinished?: () => void;
+  onAuthoredBoundsReady?: (bounds: AuthoredBounds) => void;
+  agentTraffic?: {
+    accent: string;
+    agentStatus?: AgentStatus;
+    stage: ConstructionState["stage"];
+    isLive: boolean;
+  };
 }) {
   const isScrubMode = driveMode === "scrub";
   const constructionProgressRef = useRef(constructionProgress);
@@ -999,6 +1018,10 @@ function AnimatedGlb({
     [clipsToPlay, root],
   );
   deferredRef.current = deferredGrowIns;
+
+  useLayoutEffect(() => {
+    onAuthoredBoundsReady?.(measureAuthoredBounds(root));
+  }, [onAuthoredBoundsReady, root]);
 
   useEffect(() => {
     const actions = actionsRef.current;
@@ -1232,6 +1255,15 @@ function AnimatedGlb({
         root={root}
       />
       <OccupancyGlow enabled={isDynamicScene && constructDone} root={root} />
+      {agentTraffic ? (
+        <AgentStationTraffic
+          enabled={agentTraffic.isLive}
+          accent={agentTraffic.accent}
+          agentStatus={agentTraffic.agentStatus}
+          stage={agentTraffic.stage}
+          root={root}
+        />
+      ) : null}
     </group>
   );
 }
@@ -1246,6 +1278,7 @@ function AssetPreview({
   constructClockRef,
   onHollowCompleteChange,
   onConstructReplayFinished,
+  onAuthoredBoundsReady,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
@@ -1256,12 +1289,23 @@ function AssetPreview({
   constructClockRef?: RefObject<ConstructClock>;
   onHollowCompleteChange?: (isHollowComplete: boolean) => void;
   onConstructReplayFinished?: () => void;
+  onAuthoredBoundsReady?: (bounds: AuthoredBounds) => void;
 }) {
   const isLibraryReplay = staticPreview && isConstructReplaying;
 
   if (item.kind === "glb" && item.url) {
     if (item.clip) {
       const resolvedState = constructionState ?? EMPTY_CONSTRUCTION_STATE;
+      const buildingDefinition = getBuildingDefinition(item.id);
+      const agentTraffic =
+        buildingDefinition?.tier === "staged"
+          ? {
+              accent: buildingDefinition.accent,
+              agentStatus: resolvedState.agentStatus,
+              stage: resolvedState.stage,
+              isLive: resolvedState.isLive,
+            }
+          : undefined;
       const libraryPlayback = staticPreview
         ? libraryConstructPlayback(isLibraryReplay)
         : null;
@@ -1284,10 +1328,18 @@ function AssetPreview({
           constructClockRef={constructClockRef}
           onHollowCompleteChange={onHollowCompleteChange}
           onConstructReplayFinished={onConstructReplayFinished}
+          onAuthoredBoundsReady={onAuthoredBoundsReady}
+          agentTraffic={agentTraffic}
         />
       );
     }
-    return <GlbModel url={item.url} isDynamicScene={isDynamicScene} />;
+    return (
+      <GlbModel
+        url={item.url}
+        isDynamicScene={isDynamicScene}
+        onAuthoredBoundsReady={onAuthoredBoundsReady}
+      />
+    );
   }
   return <RelayBeacon accent={item.accent} />;
 }
@@ -1320,8 +1372,13 @@ function PlacedAsset({
     isPlaying: true,
   });
   const [isHollowComplete, setIsHollowComplete] = useState(false);
+  const [authoredBounds, setAuthoredBounds] = useState<AuthoredBounds | null>(
+    null,
+  );
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
+  const isPackConstructReplay =
+    isConstructReplaying && getBuildingDefinition(object.catalogId) === undefined;
   const isConstructActive = !isHollowComplete;
 
   return (
@@ -1353,17 +1410,19 @@ function PlacedAsset({
           staticPreview={staticPreview}
           playbackSpeed={playbackSpeed}
           constructionState={constructionState}
-          isConstructReplaying={isConstructReplaying}
+          isConstructReplaying={isPackConstructReplay}
           isDynamicScene={isDynamicScene}
           constructClockRef={constructClockRef}
           onHollowCompleteChange={setIsHollowComplete}
           onConstructReplayFinished={onConstructReplayFinished}
+          onAuthoredBoundsReady={setAuthoredBounds}
         />
         {shouldMountSiteKit(item.id, isConstructActive) &&
         item.kind === "glb" &&
         item.url ? (
           <SkyscraperSiteKit
-            buildingUrl={item.url}
+            catalogId={object.catalogId}
+            authoredBounds={authoredBounds}
             footprint={item.footprint}
             constructClockRef={constructClockRef}
           />
@@ -1461,48 +1520,52 @@ export function StageCanvas({
         attach="fog"
         args={[YARD_SCENE_COLOR, fogDistances.near, fogDistances.far]}
       />
-      <SceneEnvironment
-        groundExtent={groundExtent}
-        isDynamicScene={isDynamicScene}
-        sceneVariant={sceneVariant}
-        fogNear={fogDistances.near}
-        fogFar={fogDistances.far}
-      />
-      <Ground
-        placing={placing}
-        placeCatalogId={placeCatalogId}
-        objects={objects}
-        accent={placingItem?.accent ?? "#c4a35a"}
-        footprint={placingItem?.footprint ?? DEFAULT_PLACEMENT_FOOTPRINT}
-        onPlace={onPlace}
-        onPlacementHoverChange={onPlacementHoverChange}
-        extent={groundExtent}
-        isDynamicScene={isDynamicScene}
-        sceneVariant={sceneVariant}
-      />
-      {objects.map((object) =>
-        mountableCatalogIds.has(object.catalogId) ? (
-          <PlacedAsset
-            key={object.id}
-            object={object}
-            selected={object.id === selectedId}
-            onSelect={onSelect}
-            staticPreview={staticPreview}
-            selectable={!readOnly}
-            playbackSpeed={animationSettings.playbackSpeed}
-            constructionState={constructionByCatalogId[object.catalogId]}
-            isConstructReplaying={isConstructReplaying}
+      <Suspense fallback={null}>
+        <SiteKitSourceProvider>
+          <SceneEnvironment
+            groundExtent={groundExtent}
             isDynamicScene={isDynamicScene}
-            onConstructReplayFinished={onConstructReplayFinished}
+            sceneVariant={sceneVariant}
+            fogNear={fogDistances.near}
+            fogFar={fogDistances.far}
           />
-        ) : (
-          <StagePlacementPlaceholder
-            key={object.id}
-            catalogId={object.catalogId}
-            position={object.position}
+          <Ground
+            placing={placing}
+            placeCatalogId={placeCatalogId}
+            objects={objects}
+            accent={placingItem?.accent ?? "#c4a35a"}
+            footprint={placingItem?.footprint ?? DEFAULT_PLACEMENT_FOOTPRINT}
+            onPlace={onPlace}
+            onPlacementHoverChange={onPlacementHoverChange}
+            extent={groundExtent}
+            isDynamicScene={isDynamicScene}
+            sceneVariant={sceneVariant}
           />
-        ),
-      )}
+          {objects.map((object) =>
+            mountableCatalogIds.has(object.catalogId) ? (
+              <PlacedAsset
+                key={object.id}
+                object={object}
+                selected={object.id === selectedId}
+                onSelect={onSelect}
+                staticPreview={staticPreview}
+                selectable={!readOnly}
+                playbackSpeed={animationSettings.playbackSpeed}
+                constructionState={constructionByCatalogId[object.catalogId]}
+                isConstructReplaying={isConstructReplaying}
+                isDynamicScene={isDynamicScene}
+                onConstructReplayFinished={onConstructReplayFinished}
+              />
+            ) : (
+              <StagePlacementPlaceholder
+                key={object.id}
+                catalogId={object.catalogId}
+                position={object.position}
+              />
+            ),
+          )}
+        </SiteKitSourceProvider>
+      </Suspense>
       <OrbitControls
         makeDefault
         enablePan={!placing}

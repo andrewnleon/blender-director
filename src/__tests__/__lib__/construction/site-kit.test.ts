@@ -6,11 +6,14 @@ import {
   classifySiteKitPiece,
   computeSiteKitScale,
   extractSiteKit,
+  getSiteKitTierForCatalog,
   isSiteKitObjectName,
   isSiteKitPieceRevealed,
   measureAuthoredBounds,
+  PACK_SITE_KIT_PLAN_INSET,
   resolveSiteKitTargets,
   shouldAttachSiteKit,
+  shouldIncludeSiteKitMesh,
   shouldMountSiteKit,
   shouldIgnoreForAuthoredMeasure,
   SITE_KIT_REVEAL,
@@ -66,6 +69,44 @@ describe("site-kit", () => {
     assert.equal(targets.targetWidth, 5.45);
     assert.equal(targets.targetDepth, 10);
     assert.equal(targets.targetHeight, 7);
+  });
+
+  it("pack lots use footprint-only plan with inset", () => {
+    const targets = resolveSiteKitTargets(
+      { width: 5.45, depth: 10 },
+      { width: 8, depth: 12, height: 9 },
+      { footprintOnlyPlan: true, planInset: PACK_SITE_KIT_PLAN_INSET },
+    );
+    assert.ok(Math.abs(targets.targetWidth - 5.45 * PACK_SITE_KIT_PLAN_INSET) < 1e-9);
+    assert.ok(Math.abs(targets.targetDepth - 10 * PACK_SITE_KIT_PLAN_INSET) < 1e-9);
+    assert.equal(targets.targetHeight, 9);
+  });
+
+  it("site-only tier skips frame meshes and keeps Y scale at 1", () => {
+    assert.equal(getSiteKitTierForCatalog("pack-residential-001"), "site-only");
+    assert.equal(getSiteKitTierForCatalog("operations-center"), "full");
+    assert.equal(shouldIncludeSiteKitMesh("ST_Pad", "site-only"), true);
+    assert.equal(shouldIncludeSiteKitMesh("ST_Footings", "site-only"), true);
+    assert.equal(shouldIncludeSiteKitMesh("ST_Columns_3", "site-only"), false);
+    assert.equal(shouldIncludeSiteKitMesh("ST_FrameFloor_4", "site-only"), false);
+
+    const pad = new Mesh(new BoxGeometry(1, 1, 1));
+    pad.name = "ST_Pad";
+    const column = new Mesh(new BoxGeometry(1, 1, 1));
+    column.name = "ST_Columns_1";
+    const source = new Group();
+    source.add(pad, column);
+    const kit = extractSiteKit(source, { tier: "site-only" });
+    assert.equal(kit.children.length, 1);
+    assert.equal(kit.children[0]?.name, "ST_Pad");
+
+    const scale = computeSiteKitScale({
+      targetWidth: 5.45,
+      targetDepth: 10,
+      targetHeight: 9,
+      tier: "site-only",
+    });
+    assert.equal(scale.y, 1);
   });
 
   it("measures geometry with collapsed object scale ignored", () => {

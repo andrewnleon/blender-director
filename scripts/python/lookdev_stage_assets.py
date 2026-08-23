@@ -363,9 +363,8 @@ def process_all_projects() -> None:
     projects = os.path.join(ROOT, "projects")
 
     targets = [
-
         ("operations-center/operations-center.blend", "OC_"),
-
+        ("skyscraper/skyscraper.blend", "ST_"),
     ]
 
     for rel_path, mesh_prefix in targets:

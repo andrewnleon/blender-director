@@ -7,6 +7,7 @@ import { AgentStreamConnectButton } from "@/components/agent-stream-connect-butt
 import { AnimationSettingsFields } from "@/components/animation-settings-fields";
 import { CameraSettingsFields } from "@/components/camera-settings-fields";
 import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
+import { formatStreamEventTime } from "@/lib/format-stream-time";
 import type { AnimationSettings } from "@/lib/animation-settings";
 import type { CameraSettings } from "@/lib/camera-settings";
 import {
@@ -43,6 +44,11 @@ type YardControlPanelProps = {
   onStreamToggle: () => void;
   isStreamLive: boolean;
   streamFetchError: string | null;
+  lastStreamEventAt?: string | null;
+  activeStationLabels?: readonly string[];
+  agentCount?: number;
+  taskCount?: number;
+  isStreamFrozen?: boolean;
 };
 
 function readPanelVisibleFromSession(): boolean {
@@ -322,6 +328,11 @@ export function YardControlPanelSurface({
   onStreamToggle,
   isStreamLive,
   streamFetchError,
+  lastStreamEventAt = null,
+  activeStationLabels = [],
+  agentCount = 0,
+  taskCount = 0,
+  isStreamFrozen = false,
   panelId,
   onClose,
 }: YardControlPanelSurfaceProps) {
@@ -549,6 +560,31 @@ export function YardControlPanelSurface({
                   {streamFetchError ? (
                     <p className="text-xs text-rose-300/90">
                       {streamFetchError}
+                    </p>
+                  ) : null}
+                  {streamEnabled ? (
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                      <dt>Agents</dt>
+                      <dd className="text-right text-zinc-200">{agentCount}</dd>
+                      <dt>Tasks</dt>
+                      <dd className="text-right text-zinc-200">{taskCount}</dd>
+                      <dt>Last event</dt>
+                      <dd className="text-right text-zinc-200">
+                        {lastStreamEventAt
+                          ? formatStreamEventTime(lastStreamEventAt)
+                          : "—"}
+                      </dd>
+                    </dl>
+                  ) : null}
+                  {isStreamFrozen ? (
+                    <p className="text-xs text-amber-200/90">
+                      Frozen — last live construction state held while stream
+                      reconnects.
+                    </p>
+                  ) : null}
+                  {activeStationLabels.length > 0 ? (
+                    <p className="text-xs text-zinc-300">
+                      Active stations: {activeStationLabels.join(", ")}
                     </p>
                   ) : null}
                 </div>

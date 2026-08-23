@@ -1,96 +1,58 @@
 "use client";
 
-import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
-import {
-  FrontSide,
-  Material,
-  Mesh,
-  MeshStandardMaterial,
-  type Object3D,
-} from "three";
-import { getCatalogGlbUrl } from "@/lib/catalog";
+import { useEffect, useId, useMemo, type RefObject } from "react";
 import type { CatalogFootprint } from "@/lib/catalog-types";
 import {
-  applySiteKitReveal,
   computeSiteKitScale,
   disposeSiteKitMaterials,
-  extractSiteKit,
-  getSkyscraperGlbUrl,
-  measureAuthoredBounds,
+  getSiteKitTierForCatalog,
+  PACK_SITE_KIT_PLAN_INSET,
   resolveSiteKitTargets,
-  SKYSCRAPER_CATALOG_ID,
+  type AuthoredBounds,
 } from "@/lib/construction/site-kit";
 import type { ConstructClock } from "@/lib/construction/types";
-
-function prepareKitMesh(child: Object3D): void {
-  if (!(child instanceof Mesh)) {
-    return;
-  }
-  if (Array.isArray(child.material)) {
-    child.material = child.material.map((material) =>
-      material instanceof Material ? material.clone() : material,
-    );
-  } else if (child.material instanceof Material) {
-    child.material = child.material.clone();
-  }
-  child.castShadow = true;
-  child.receiveShadow = true;
-  const materials = Array.isArray(child.material)
-    ? child.material
-    : [child.material];
-  for (const material of materials) {
-    if (!(material instanceof MeshStandardMaterial)) {
-      continue;
-    }
-    material.shadowSide = FrontSide;
-    if ("fog" in material) {
-      Reflect.set(material, "fog", false);
-    }
-  }
-}
+import { useSiteKitSource } from "@/components/site-kit-provider";
 
 export function SkyscraperSiteKit({
-  buildingUrl,
+  catalogId,
+  authoredBounds,
   footprint,
   constructClockRef,
 }: {
-  buildingUrl: string;
+  catalogId: string;
+  authoredBounds: AuthoredBounds | null;
   footprint?: CatalogFootprint;
   constructClockRef: RefObject<ConstructClock>;
 }) {
-  const kitUrl = getSkyscraperGlbUrl(getCatalogGlbUrl(SKYSCRAPER_CATALOG_ID));
-  const { scene: kitScene } = useGLTF(kitUrl);
-  const { scene: buildingScene } = useGLTF(buildingUrl);
+  const instanceId = useId();
+  const { cloneKit, registerKit, unregisterKit } = useSiteKitSource();
+  const tier = getSiteKitTierForCatalog(catalogId);
+  const isSiteOnlyKit = tier === "site-only";
 
-  const kit = useMemo(() => {
-    const extracted = extractSiteKit(kitScene);
-    extracted.traverse(prepareKitMesh);
-    applySiteKitReveal(extracted, 0);
-    return extracted;
-  }, [kitScene]);
+  const kit = useMemo(() => cloneKit(tier), [cloneKit, tier]);
 
   const scale = useMemo(() => {
-    const bounds = measureAuthoredBounds(buildingScene);
-    return computeSiteKitScale(resolveSiteKitTargets(footprint, bounds));
-  }, [buildingScene, footprint]);
-
-  useLayoutEffect(() => {
-    applySiteKitReveal(kit, constructClockRef.current.progress01);
-  }, [constructClockRef, kit]);
+    if (!authoredBounds) {
+      return null;
+    }
+    const targets = resolveSiteKitTargets(footprint, authoredBounds, {
+      footprintOnlyPlan: isSiteOnlyKit,
+      planInset: isSiteOnlyKit ? PACK_SITE_KIT_PLAN_INSET : 1,
+    });
+    return computeSiteKitScale({ ...targets, tier });
+  }, [authoredBounds, footprint, isSiteOnlyKit, tier]);
 
   useEffect(() => {
+    registerKit(instanceId, { kit, constructClockRef });
     return () => {
+      unregisterKit(instanceId);
       disposeSiteKitMaterials(kit);
     };
-  }, [kit]);
+  }, [constructClockRef, instanceId, kit, registerKit, unregisterKit]);
 
-  useFrame(() => {
-    applySiteKitReveal(kit, constructClockRef.current.progress01);
-  });
+  if (!scale) {
+    return null;
+  }
 
   return <primitive object={kit} scale={[scale.x, scale.y, scale.z]} />;
 }
-
-useGLTF.preload(getSkyscraperGlbUrl(getCatalogGlbUrl(SKYSCRAPER_CATALOG_ID)));

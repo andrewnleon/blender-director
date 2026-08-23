@@ -4,7 +4,7 @@ export const YARD_OBJECTS_SESSION_KEY = "openclaw-yard.objects";
 export const PLACE_CATALOG_SESSION_KEY = "openclaw-yard.place-catalog-id";
 export const DEFAULT_PLACE_CATALOG_ID = "operations-center";
 
-/** Yard session keys — OpenClaw yard placement only. Library grid uses `library-layout.ts`; construct replay uses `libraryConstructPlayback`, not yard stream state. */
+/** Yard session keys — palette + exclusions. Grid layout uses `library-layout.ts`. */
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -63,9 +63,10 @@ export function readYardObjectsFromSession(): PlacedObject[] {
   }
 }
 
-export function writeYardObjectsToSession(objects: readonly PlacedObject[]): void {
+/** Drop legacy manual yard lots — grid layout is computed in `library-layout.ts`. */
+export function clearLegacyYardObjectsFromSession(): void {
   try {
-    sessionStorage.setItem(YARD_OBJECTS_SESSION_KEY, JSON.stringify(objects));
+    sessionStorage.removeItem(YARD_OBJECTS_SESSION_KEY);
   } catch {
     // sessionStorage may be unavailable in private browsing
   }

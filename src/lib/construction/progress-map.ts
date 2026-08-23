@@ -45,6 +45,28 @@ export function progressFromStage(stage: BuildingStage): number {
   return stage / 3;
 }
 
+const TASK_STATUS_PROGRESS: Record<TaskStatus, number> = {
+  queued: 0,
+  assigned: 0.12,
+  "in-progress": 0.38,
+  review: 0.62,
+  blocked: 0.5,
+  completed: 1,
+  failed: 0.28,
+};
+
+/** Finer 0–1 scrub from task mix — smoother than stage / 3 alone. */
+export function progressFromTaskStatuses(statuses: TaskStatus[]): number {
+  if (statuses.length === 0) {
+    return 0;
+  }
+  let total = 0;
+  for (const status of statuses) {
+    total += TASK_STATUS_PROGRESS[status] ?? 0;
+  }
+  return Math.min(1, total / statuses.length);
+}
+
 export function tasksForAgent(agentId: string, tasks: readonly AgentTask[]): AgentTask[] {
   return tasks.filter((task) => task.assignedAgentIds.includes(agentId));
 }

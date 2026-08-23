@@ -43,11 +43,8 @@ function countConstructCapable(placements: readonly PlacedObject[]): number {
 
 export function AssetLibrary() {
   const {
-    objects,
     placeCatalogId,
     setPlaceCatalogId,
-    selectedId: yardSelectedId,
-    setSelectedId: setYardSelectedId,
     isSandboxMode,
     toggleSandboxMode,
     excludedIds,
@@ -60,7 +57,6 @@ export function AssetLibrary() {
     agentStream,
     agentYard,
     handleResetYard,
-    handleRemoveObject,
   } = useYardChrome();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const libraryItems = useMemo(
@@ -224,13 +220,13 @@ export function AssetLibrary() {
         onToggleDynamicScene={toggleDynamicScene}
         sceneVariant={sceneVariant}
         onSceneVariantChange={selectSceneVariant}
-        objects={objects}
-        selectedId={yardSelectedId}
+        objects={placements}
+        selectedId={selectedId}
         isSandboxMode={isSandboxMode}
         onToggleSandboxMode={toggleSandboxMode}
-        onSelectObject={setYardSelectedId}
+        onSelectObject={setSelectedId}
         onResetYard={handleResetYard}
-        onRemoveObject={handleRemoveObject}
+        onRemoveObject={handleRemovePlacement}
         resetYardTitle="Clear models placed in the yard. This library grid stays."
         placementHint={placementHint}
         hoverCanPlace={null}

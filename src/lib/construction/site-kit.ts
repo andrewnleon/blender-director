@@ -25,6 +25,22 @@ export const SKYSCRAPER_SITE_AUTHORING = SITE_KIT_AUTHORING;
 
 export const SKYSCRAPER_CATALOG_ID = "skyscraper";
 
+/** Pack lots: fence/pad stay inside yellow 10×10 lines — not on mesh bounds. */
+export const PACK_SITE_KIT_PLAN_INSET = 0.9;
+
+export type SiteKitTier = "full" | "site-only";
+
+export type SiteKitExtractOptions = {
+  tier?: SiteKitTier;
+};
+
+export type ResolveSiteKitTargetsOptions = {
+  /** Use catalog footprint for plan — ignore wider mesh bounds (pack lots). */
+  footprintOnlyPlan?: boolean;
+  /** Multiply plan targets — inset inside lot boundary. */
+  planInset?: number;
+};
+
 const SITE_KIT_EXACT = new Set([
   "ST_Pad",
   "ST_Foundation",
@@ -75,6 +91,14 @@ export function getSkyscraperGlbUrl(catalogUrl?: string): string {
   return catalogUrl ?? "/models/skyscraper.glb";
 }
 
+export function isPackCatalogId(catalogId: string): boolean {
+  return catalogId.startsWith("pack-");
+}
+
+export function getSiteKitTierForCatalog(catalogId: string): SiteKitTier {
+  return isPackCatalogId(catalogId) ? "site-only" : "full";
+}
+
 export function shouldAttachSiteKit(catalogId: string): boolean {
   return catalogId !== SKYSCRAPER_CATALOG_ID;
 }
@@ -119,13 +143,18 @@ export function computeSiteKitScale(input: {
   targetWidth: number;
   targetDepth: number;
   targetHeight: number;
+  tier?: SiteKitTier;
 }): SiteKitScale {
   const width = Math.max(input.targetWidth, MIN_TARGET_PLAN);
   const depth = Math.max(input.targetDepth, MIN_TARGET_PLAN);
   const height = Math.max(input.targetHeight, MIN_TARGET_HEIGHT);
+  const tier = input.tier ?? "full";
   return {
     x: width / SITE_KIT_AUTHORING.siteWidth,
-    y: height / SITE_KIT_AUTHORING.cageHeight,
+    y:
+      tier === "site-only"
+        ? 1
+        : height / SITE_KIT_AUTHORING.cageHeight,
     z: depth / SITE_KIT_AUTHORING.siteDepth,
   };
 }
@@ -133,14 +162,35 @@ export function computeSiteKitScale(input: {
 export function resolveSiteKitTargets(
   footprint: CatalogFootprint | undefined,
   bounds: AuthoredBounds,
+  options?: ResolveSiteKitTargetsOptions,
 ): { targetWidth: number; targetDepth: number; targetHeight: number } {
   const catalogWidth = footprint?.width ?? 0;
   const catalogDepth = footprint?.depth ?? 0;
+  const planInset = options?.planInset ?? 1;
+  const planWidth = options?.footprintOnlyPlan
+    ? catalogWidth || bounds.width
+    : Math.max(catalogWidth, bounds.width);
+  const planDepth = options?.footprintOnlyPlan
+    ? catalogDepth || bounds.depth
+    : Math.max(catalogDepth, bounds.depth);
   return {
-    targetWidth: Math.max(catalogWidth, bounds.width),
-    targetDepth: Math.max(catalogDepth, bounds.depth),
+    targetWidth: planWidth * planInset,
+    targetDepth: planDepth * planInset,
     targetHeight: bounds.height,
   };
+}
+
+export function shouldIncludeSiteKitMesh(
+  name: string,
+  tier: SiteKitTier = "full",
+): boolean {
+  if (!isSiteKitObjectName(name)) {
+    return false;
+  }
+  if (tier === "full") {
+    return true;
+  }
+  return classifySiteKitPiece(name).layer !== "frame";
 }
 
 export function measureAuthoredBounds(root: Object3D): AuthoredBounds {
@@ -289,7 +339,11 @@ export function writeConstructClock(
 }
 
 /** Clone site + cage meshes at authored size (bind pose is collapsed). */
-export function extractSiteKit(sourceRoot: Object3D): Group {
+export function extractSiteKit(
+  sourceRoot: Object3D,
+  options?: SiteKitExtractOptions,
+): Group {
+  const tier = options?.tier ?? "full";
   const group = new Group();
   group.name = "ST_SiteKitInstance";
   const position = new Vector3();
@@ -301,7 +355,7 @@ export function extractSiteKit(sourceRoot: Object3D): Group {
     if (!(child instanceof Mesh)) {
       return;
     }
-    if (!isSiteKitObjectName(child.name)) {
+    if (!shouldIncludeSiteKitMesh(child.name, tier)) {
       return;
     }
     const clone = child.clone(false);

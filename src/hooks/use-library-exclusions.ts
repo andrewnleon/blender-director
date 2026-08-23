@@ -79,5 +79,11 @@ export function useLibraryExclusions() {
     }
   }, []);
 
-  return { excludedIds, excludeCatalogId, saveError };
+  const resetExclusions = useCallback(() => {
+    setSaveError(null);
+    setExcludedIds([]);
+    writeLocalExcludedCatalogIds([]);
+  }, []);
+
+  return { excludedIds, excludeCatalogId, resetExclusions, saveError };
 }
