@@ -9,6 +9,7 @@ type PackManifestItem = {
   url: string;
   accent: string;
   footprint: { width: number; depth: number };
+  clip?: string;
   inLibrary?: boolean;
 };
 
@@ -35,7 +36,7 @@ function readPackManifestItems(): PackManifestItem[] {
   return raw.items.filter(isPackManifestItem);
 }
 
-/** Bundled Blender pack exports — static GLBs for yard placement tests. */
+/** Bundled Blender pack exports — construct clips use skyscraper crane grammar. */
 export const PACK_PALETTE_CATALOG: CatalogItem[] = readPackManifestItems().map(
   (item) => ({
     id: item.id,
@@ -45,6 +46,7 @@ export const PACK_PALETTE_CATALOG: CatalogItem[] = readPackManifestItems().map(
     url: item.url,
     accent: item.accent,
     footprint: item.footprint,
+    clip: item.clip ?? "construct",
     inLibrary: item.inLibrary ?? true,
   }),
 );

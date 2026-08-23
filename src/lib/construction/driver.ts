@@ -1,4 +1,13 @@
 import type { Agent, AgentTask } from "@/types/openclaw";
+import {
+  BUILDING_DEFINITIONS,
+  getBuildingDefinition,
+} from "@/lib/construction/asset-registry";
+import {
+  constructionStageForCatalog,
+  primaryAgentStatus,
+  progressFromStage,
+} from "@/lib/construction/progress-map";
 import type { ConstructionState } from "@/lib/construction/types";
 
 /** Bind-pose scrub when no OpenClaw tasks are driving this catalog entry yet. */
@@ -7,15 +16,23 @@ export const EMPTY_CONSTRUCTION_STATE: ConstructionState = {
   progress: 0,
   isLive: false,
 };
-import {
-  constructionStageForCatalog,
-  primaryAgentStatus,
-  progressFromStage,
-} from "@/lib/construction/progress-map";
-import {
-  BUILDING_DEFINITIONS,
-  getBuildingDefinition,
-} from "@/lib/construction/asset-registry";
+
+export type ConstructDriveMode = "auto" | "scrub";
+
+/** Staged lots scrub; scheduled heroes auto-play until a live stream drives them. */
+export function constructDriveModeForCatalog(
+  catalogId: string,
+  constructionState: ConstructionState | undefined,
+): ConstructDriveMode {
+  const definition = getBuildingDefinition(catalogId);
+  if (definition?.tier === "staged") {
+    return "scrub";
+  }
+  if (constructionState?.isLive) {
+    return "scrub";
+  }
+  return "auto";
+}
 
 export function constructionStateForCatalog(
   catalogId: string,
@@ -67,4 +84,17 @@ export function clipTimeForProgress(
 
 export function isConstructionComplete(progress: number): boolean {
   return progress >= 0.99;
+}
+
+/** Catalog rest pose — scrub to complete so silhouettes match across bind styles. */
+export const LIBRARY_REST_PROGRESS = 1;
+
+export function libraryConstructPlayback(isReplay: boolean): {
+  driveMode: ConstructDriveMode;
+  progress: number;
+} {
+  if (isReplay) {
+    return { driveMode: "auto", progress: 0 };
+  }
+  return { driveMode: "scrub", progress: LIBRARY_REST_PROGRESS };
 }

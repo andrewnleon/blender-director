@@ -5,8 +5,16 @@ import math
 from dataclasses import dataclass
 from typing import Callable
 
+import bmesh
 import bpy
-from mathutils import Euler
+from mathutils import Euler, Vector
+
+from construct_grammar import (
+    GROW_START_SCALE,
+    HOOK_ABOVE,
+    JIB_CLEARANCE,
+    SNAP_FRAMES,
+)
 
 ObjectFactory = Callable[..., bpy.types.Object]
 CollectionFactory = Callable[[str], bpy.types.Collection]
@@ -335,3 +343,247 @@ def linear_crane_fcurves(prefix: str) -> None:
                 continue
             for keyframe in fcu.keyframe_points:
                 keyframe.interpolation = "LINEAR"
+
+
+CONSTRUCT_CLIP = "construct"
+
+CRANE_MATERIAL_SPECS = (
+    ("ConstrYellow", (0.93, 0.74, 0.07), 0.42, 0.15),
+    ("ConstrBlack", (0.12, 0.12, 0.14), 0.55, 0.25),
+    ("ConstrCab", (0.28, 0.32, 0.36), 0.45, 0.2),
+    ("Steel", (0.68, 0.70, 0.74), 0.35, 0.9),
+)
+
+
+def name_construct_action(obj: bpy.types.Object) -> None:
+    if obj.animation_data and obj.animation_data.action:
+        obj.animation_data.action.name = CONSTRUCT_CLIP
+
+
+def ensure_collection(name: str) -> bpy.types.Collection:
+    collection = bpy.data.collections.get(name)
+    if collection is None:
+        collection = bpy.data.collections.new(name)
+        bpy.context.scene.collection.children.link(collection)
+    return collection
+
+
+def _link(obj: bpy.types.Object, collection: bpy.types.Collection) -> bpy.types.Object:
+    for user_collection in list(obj.users_collection):
+        user_collection.objects.unlink(obj)
+    collection.objects.link(obj)
+    return obj
+
+
+def ensure_material(
+    name: str,
+    color: tuple[float, float, float],
+    roughness: float,
+    metallic: float,
+) -> bpy.types.Material:
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    mat.diffuse_color = (*color, 1.0)
+    return mat
+
+
+def ensure_crane_materials(prefix: str) -> dict[str, str]:
+    """Unique material names per prefix so pack exports do not clash."""
+    names: dict[str, str] = {}
+    for suffix, color, roughness, metallic in CRANE_MATERIAL_SPECS:
+        material_name = f"{prefix}{suffix}"
+        ensure_material(material_name, color, roughness, metallic)
+        names[suffix] = material_name
+    return names
+
+
+def make_box(
+    name: str,
+    loc: tuple[float, float, float],
+    dims: tuple[float, float, float],
+    mat_name: str,
+    collection_name: str,
+) -> bpy.types.Object:
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    _link(obj, ensure_collection(collection_name))
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    for vert in bm.verts:
+        vert.co.x *= dims[0]
+        vert.co.y *= dims[1]
+        vert.co.z *= dims[2]
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.location = Vector(loc)
+    material = bpy.data.materials.get(mat_name)
+    if material is not None:
+        obj.data.materials.append(material)
+    return obj
+
+
+def build_standalone_crane(config: CraneConfig) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """Materials + box factory + tower crane — no host building required."""
+    material_names = ensure_crane_materials(config.prefix)
+    built = CraneConfig(
+        prefix=config.prefix,
+        site_xyz=config.site_xyz,
+        pad_z=config.pad_z,
+        track_h=config.track_h,
+        base_h=config.base_h,
+        tower_rest_h=config.tower_rest_h,
+        boom_len=config.boom_len,
+        mat_yellow=material_names["ConstrYellow"],
+        mat_black=material_names["ConstrBlack"],
+        mat_cab=material_names["ConstrCab"],
+        mat_payload=material_names["Steel"],
+        collection_name=config.collection_name,
+    )
+    return build_tower_crane(built, make_box, ensure_collection, _link)
+
+
+def crane_export_objects(prefix: str) -> list[bpy.types.Object]:
+    objects: list[bpy.types.Object] = []
+    for name in crane_root_names(prefix) + crane_mesh_names(prefix):
+        obj = bpy.data.objects.get(name)
+        if obj is not None:
+            objects.append(obj)
+    return objects
+
+
+def crane_pose_for_height(
+    config: CraneConfig,
+    world_top_z: float,
+) -> tuple[float, float, float, float]:
+    """Mast scale/center, jib Z, hook local Z so the hook sits on world_top_z."""
+    jib_z = max(config.boom_rest_z, world_top_z - config.pad_z + JIB_CLEARANCE)
+    tower_h = max(config.tower_rest_h, jib_z - config.tower_base_z + 0.2)
+    tower_center_z = config.tower_base_z + tower_h * 0.5
+    tower_scale_z = tower_h / config.tower_rest_h
+    hook_z = world_top_z + HOOK_ABOVE - config.pad_z - jib_z
+    return tower_scale_z, tower_center_z, jib_z, hook_z
+
+
+def key_crane_mast_to_height(
+    config: CraneConfig,
+    frame: int,
+    world_top_z: float,
+) -> float:
+    """Grow the yellow mast and ride the jib up. Returns hook local Z."""
+    tower_scale_z, tower_center_z, jib_z, hook_z = crane_pose_for_height(
+        config,
+        world_top_z,
+    )
+    prefix = config.prefix
+    tower = bpy.data.objects.get(f"{prefix}CraneTower")
+    cab = bpy.data.objects.get(f"{prefix}CraneCab")
+    boom = bpy.data.objects.get(f"{prefix}CraneBoomPivot")
+    if tower is not None:
+        tower.scale = (1.0, 1.0, tower_scale_z)
+        tower.location = (0.0, 0.0, tower_center_z)
+        tower.keyframe_insert("scale", frame=frame)
+        tower.keyframe_insert("location", frame=frame)
+        name_construct_action(tower)
+    if cab is not None:
+        cab.location = (0.28, 0.0, jib_z - 0.03)
+        cab.keyframe_insert("location", frame=frame)
+        name_construct_action(cab)
+    if boom is not None:
+        boom.location = (0.0, 0.0, jib_z)
+        boom.keyframe_insert("location", frame=frame)
+        name_construct_action(boom)
+    key_crane_hook(prefix, frame, hook_z, config.hook_rest)
+    return hook_z
+
+
+def lego_snap_in(
+    obj: bpy.types.Object,
+    place_frame: int,
+    clip_end: int,
+    grow_start: float = GROW_START_SCALE,
+    snap_frames: int = SNAP_FRAMES,
+) -> None:
+    """Lego snap at seated height — tiny bind pose, constant scale keys."""
+    prefs = bpy.context.preferences.edit
+    previous_interp = prefs.keyframe_new_interpolation_type
+    prefs.keyframe_new_interpolation_type = "CONSTANT"
+    rest = obj.scale.copy()
+    loc = obj.location.copy()
+    tiny = (rest.x * grow_start, rest.y * grow_start, rest.z * grow_start)
+    hold_end = max(place_frame, clip_end - 1)
+    obj.location = loc
+    obj.keyframe_insert("location", frame=1)
+    obj.keyframe_insert("location", frame=place_frame)
+    obj.keyframe_insert("location", frame=hold_end)
+    obj.scale = tiny
+    obj.keyframe_insert("scale", frame=1)
+    pre = max(1, place_frame - snap_frames)
+    obj.keyframe_insert("scale", frame=pre)
+    obj.scale = rest
+    obj.keyframe_insert("scale", frame=place_frame)
+    obj.keyframe_insert("scale", frame=hold_end)
+    name_construct_action(obj)
+    prefs.keyframe_new_interpolation_type = previous_interp
+
+
+def crane_place_piece(
+    config: CraneConfig,
+    obj: bpy.types.Object,
+    frame_start: int,
+    duration: int,
+    boom_deg: float,
+    world_top_z: float,
+    clip_end: int,
+) -> int:
+    """Boom swing + hook drop, then Lego snap when the hook sets."""
+    _scale, _center, _jib, hook_on_roof = crane_pose_for_height(config, world_top_z)
+    hook_high = hook_on_roof
+    hook_low = hook_on_roof - 0.45
+    place_frame = animate_crane_lift(
+        config.prefix,
+        frame_start,
+        duration,
+        boom_deg,
+        hook_high,
+        hook_low,
+        config.hook_rest,
+    )
+    lego_snap_in(obj, place_frame, clip_end)
+    return place_frame
+
+
+def collapse_crane_scale(
+    prefix: str,
+    frame_on: int,
+    clip_end: int,
+    grow_start: float = GROW_START_SCALE,
+) -> None:
+    """Scale-collapse crane meshes so rest pose is a clean pad (no hide_viewport)."""
+    prefs = bpy.context.preferences.edit
+    previous_interp = prefs.keyframe_new_interpolation_type
+    prefs.keyframe_new_interpolation_type = "CONSTANT"
+    pre = max(1, frame_on - 1)
+    for name in crane_mesh_names(prefix):
+        obj = bpy.data.objects.get(name)
+        if obj is None:
+            continue
+        rest = obj.scale.copy()
+        tiny = (rest.x * grow_start, rest.y * grow_start, rest.z * grow_start)
+        obj.scale = rest
+        obj.keyframe_insert("scale", frame=pre)
+        obj.scale = tiny
+        obj.keyframe_insert("scale", frame=frame_on)
+        obj.keyframe_insert("scale", frame=clip_end)
+        name_construct_action(obj)
+    prefs.keyframe_new_interpolation_type = previous_interp

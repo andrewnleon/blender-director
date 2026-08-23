@@ -1,17 +1,19 @@
 {
   "generatedAt": "pack-export",
+  "lotMeters": 10.0,
   "items": [
     {
       "id": "pack-residential-001",
       "label": "Residential 001",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-001.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-001.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 001"
@@ -21,12 +23,13 @@
       "label": "Residential 002",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-002.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-002.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 002"
@@ -36,12 +39,13 @@
       "label": "Residential 003",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-003.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-003.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 003"
@@ -51,12 +55,13 @@
       "label": "Residential 004",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-004.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-004.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 004"
@@ -66,12 +71,13 @@
       "label": "Residential 005",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-005.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-005.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 005"
@@ -81,12 +87,13 @@
       "label": "Residential 006",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-006.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-006.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 006"
@@ -96,12 +103,13 @@
       "label": "Residential 007",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-007.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-007.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 007"
@@ -111,12 +119,13 @@
       "label": "Residential 008",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-008.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-008.glb?v=5",
       "accent": "#f97316",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 008"
@@ -126,12 +135,13 @@
       "label": "Residential 009",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-009.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-009.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 009"
@@ -141,12 +151,13 @@
       "label": "Residential 010",
       "role": "Residential pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-residential-010.glb?v=1",
+      "url": "/models/packs/exported/pack-residential-010.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 14.0,
-        "depth": 24.0
+        "width": 5.45,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "01 Residential Buildings Set.blend",
       "sourceMesh": "Residential Buildings 010"
@@ -156,12 +167,13 @@
       "label": "City tower 001",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-001.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-001.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 50.0,
-        "depth": 76.0
+        "width": 6.6,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.001"
@@ -171,12 +183,13 @@
       "label": "City tower 002",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-002.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-002.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 16.0,
-        "depth": 16.0
+        "width": 10.0,
+        "depth": 9.75
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.002"
@@ -186,12 +199,13 @@
       "label": "City tower 003",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-003.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-003.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 22.0,
-        "depth": 22.0
+        "width": 10.0,
+        "depth": 9.78
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.003"
@@ -201,12 +215,13 @@
       "label": "City tower 004",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-004.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-004.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
-        "width": 22.0,
-        "depth": 22.0
+        "width": 10.0,
+        "depth": 9.84
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.004"
@@ -216,12 +231,13 @@
       "label": "City tower 005",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-005.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-005.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
-        "width": 14.0,
-        "depth": 14.0
+        "width": 9.08,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.005"
@@ -231,12 +247,13 @@
       "label": "City tower 006",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-006.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-006.glb?v=5",
       "accent": "#f97316",
       "footprint": {
-        "width": 30.0,
-        "depth": 20.0
+        "width": 10.0,
+        "depth": 6.46
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.006"
@@ -246,12 +263,13 @@
       "label": "City tower 007",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-007.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-007.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
-        "width": 20.0,
-        "depth": 14.0
+        "width": 10.0,
+        "depth": 6.46
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.007"
@@ -261,12 +279,13 @@
       "label": "City tower 1679",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-1679.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-1679.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 34.0,
-        "depth": 44.0
+        "width": 7.51,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.1679"
@@ -276,12 +295,13 @@
       "label": "City tower 205",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-205.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-205.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 22.0,
-        "depth": 22.0
+        "width": 10.0,
+        "depth": 9.84
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.205"
@@ -291,12 +311,13 @@
       "label": "City tower 210",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-210.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-210.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 54.0,
-        "depth": 24.0
+        "width": 10.0,
+        "depth": 4.4
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.210"
@@ -306,12 +327,13 @@
       "label": "City tower 2484",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-2484.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-2484.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 26.0,
-        "depth": 30.0
+        "width": 8.69,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.2484"
@@ -321,12 +343,13 @@
       "label": "City tower 2560",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-2560.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-2560.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
-        "width": 14.0,
-        "depth": 12.0
+        "width": 10.0,
+        "depth": 8.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.2560"
@@ -336,12 +359,13 @@
       "label": "City tower 2670",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-2670.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-2670.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
-        "width": 56.0,
-        "depth": 58.0
+        "width": 9.88,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.2670"
@@ -351,12 +375,13 @@
       "label": "City tower 3781",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-3781.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-3781.glb?v=5",
       "accent": "#f97316",
       "footprint": {
-        "width": 36.0,
-        "depth": 34.0
+        "width": 10.0,
+        "depth": 9.22
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.3781"
@@ -366,12 +391,13 @@
       "label": "City tower 782",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-782.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-782.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
-        "width": 64.0,
-        "depth": 68.0
+        "width": 9.36,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.782"
@@ -381,12 +407,13 @@
       "label": "City tower 923",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-city-923.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-city-923.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 24.0,
-        "depth": 24.0
+        "width": 10.0,
+        "depth": 9.98
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "city buildings.windows.923"
@@ -396,12 +423,13 @@
       "label": "Futuristic cube 0",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-cube-0.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-cube-0.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 34.0,
-        "depth": 24.0
+        "width": 10.0,
+        "depth": 6.79
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Cube"
@@ -411,12 +439,13 @@
       "label": "Downtown 001",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-001.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-001.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 40.0,
-        "depth": 38.0
+        "width": 10.0,
+        "depth": 9.31
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.001"
@@ -426,12 +455,13 @@
       "label": "Downtown 002",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-002.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-002.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 32.0,
-        "depth": 30.0
+        "width": 10.0,
+        "depth": 9.7
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.002"
@@ -441,12 +471,13 @@
       "label": "Downtown 003",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-003.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-003.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.003"
@@ -456,12 +487,13 @@
       "label": "Downtown 004",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-004.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-004.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
-        "width": 28.0,
-        "depth": 20.0
+        "width": 10.0,
+        "depth": 7.52
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.004"
@@ -471,12 +503,13 @@
       "label": "Downtown 005",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-005.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-005.glb?v=5",
       "accent": "#f97316",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.005"
@@ -486,12 +519,13 @@
       "label": "Downtown 006",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-006.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-006.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.006"
@@ -501,12 +535,13 @@
       "label": "Downtown 007",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-007.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-007.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.007"
@@ -516,12 +551,13 @@
       "label": "Downtown 008",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-008.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-008.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 12.0,
-        "depth": 12.0
+        "width": 10.0,
+        "depth": 9.81
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.008"
@@ -531,12 +567,13 @@
       "label": "Downtown 009",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-009.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-009.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 12.0,
-        "depth": 12.0
+        "width": 10.0,
+        "depth": 9.82
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.009"
@@ -546,12 +583,13 @@
       "label": "Downtown 010",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-010.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-010.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 12.0,
-        "depth": 12.0
+        "width": 10.0,
+        "depth": 9.83
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.010"
@@ -561,12 +599,13 @@
       "label": "Downtown 011",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-011.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-011.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
-        "width": 24.0,
-        "depth": 24.0
+        "width": 10.0,
+        "depth": 9.76
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.011"
@@ -576,12 +615,13 @@
       "label": "Downtown 012",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-012.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-012.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.012"
@@ -591,12 +631,13 @@
       "label": "Downtown 013",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-013.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-013.glb?v=5",
       "accent": "#f97316",
       "footprint": {
-        "width": 18.0,
-        "depth": 26.0
+        "width": 6.92,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.013"
@@ -606,12 +647,13 @@
       "label": "Downtown 014",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-014.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-014.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.014"
@@ -621,12 +663,13 @@
       "label": "Downtown 015",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-015.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-015.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 12.0,
-        "depth": 12.0
+        "width": 10.0,
+        "depth": 9.83
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.015"
@@ -636,12 +679,13 @@
       "label": "Downtown 016",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-016.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-016.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 28.0,
-        "depth": 32.0
+        "width": 8.67,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.016"
@@ -651,12 +695,13 @@
       "label": "Downtown 017",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-017.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-017.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 30.0,
-        "depth": 28.0
+        "width": 10.0,
+        "depth": 9.29
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.017"
@@ -666,12 +711,13 @@
       "label": "Downtown 1296",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-1296.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1296.glb?v=5",
       "accent": "#d97706",
       "footprint": {
-        "width": 32.0,
-        "depth": 26.0
+        "width": 10.0,
+        "depth": 8.33
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.1296"
@@ -681,12 +727,13 @@
       "label": "Downtown 1299",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-1299.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1299.glb?v=5",
       "accent": "#e879f9",
       "footprint": {
-        "width": 24.0,
-        "depth": 30.0
+        "width": 7.65,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.1299"
@@ -696,12 +743,13 @@
       "label": "Downtown 1395",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-1395.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1395.glb?v=5",
       "accent": "#38bdf8",
       "footprint": {
-        "width": 28.0,
-        "depth": 28.0
+        "width": 9.71,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.1395"
@@ -711,12 +759,13 @@
       "label": "Downtown 1421",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-1421.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1421.glb?v=5",
       "accent": "#f97316",
       "footprint": {
-        "width": 38.0,
-        "depth": 32.0
+        "width": 10.0,
+        "depth": 8.32
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.1421"
@@ -726,12 +775,13 @@
       "label": "Downtown 1464",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-1464.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-1464.glb?v=5",
       "accent": "#8b7355",
       "footprint": {
-        "width": 48.0,
-        "depth": 50.0
+        "width": 9.69,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.1464"
@@ -741,12 +791,13 @@
       "label": "Downtown 267",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-267.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-267.glb?v=5",
       "accent": "#6a9ec4",
       "footprint": {
-        "width": 34.0,
-        "depth": 36.0
+        "width": 9.65,
+        "depth": 10.0
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.267"
@@ -756,12 +807,13 @@
       "label": "Downtown 453",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-453.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-453.glb?v=5",
       "accent": "#7c5cbf",
       "footprint": {
-        "width": 24.0,
-        "depth": 24.0
+        "width": 10.0,
+        "depth": 9.76
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.453"
@@ -771,12 +823,13 @@
       "label": "Downtown 495",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-495.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-495.glb?v=5",
       "accent": "#22c55e",
       "footprint": {
-        "width": 38.0,
-        "depth": 38.0
+        "width": 10.0,
+        "depth": 9.98
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.495"
@@ -786,12 +839,13 @@
       "label": "Downtown 605",
       "role": "Futuristic city pack",
       "kind": "glb",
-      "url": "/models/packs/exported/pack-futuristic-downtown-605.glb?v=1",
+      "url": "/models/packs/exported/pack-futuristic-downtown-605.glb?v=5",
       "accent": "#d97706",
       "footprint": {
         "width": 10.0,
-        "depth": 10.0
+        "depth": 9.77
       },
+      "clip": "construct",
       "inLibrary": true,
       "sourceBlend": "uploads_files_2727648_Futuristic+City.blend",
       "sourceMesh": "Downtown Center City.605"

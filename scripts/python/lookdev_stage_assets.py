@@ -112,6 +112,12 @@ def ensure_material(name: str, preset: dict) -> None:
 
         mat = bpy.data.materials.new(name)
 
+    if mat.node_tree and any(node.type == "TEX_IMAGE" for node in mat.node_tree.nodes):
+
+        print("LOOKDEV skip textured", name)
+
+        return
+
     mat.use_nodes = True
 
     nodes = mat.node_tree.nodes

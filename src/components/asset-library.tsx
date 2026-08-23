@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
+import { AssetListPanel } from "@/components/asset-list-panel";
 import { CameraSettingsPanel } from "@/components/camera-settings-panel";
+import { ConstructReplayButton } from "@/components/construct-replay-button";
 import { StageCanvas } from "@/components/stage-canvas";
-import { getCatalogItem } from "@/lib/catalog";
 import {
   DEFAULT_ANIMATION_SETTINGS,
   type AnimationSettings,
 } from "@/lib/animation-settings";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
+import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
 import {
   buildLibraryPlacements,
   getLibraryBounds,
@@ -21,8 +23,18 @@ import {
   LIBRARY_COLUMN_COUNT,
 } from "@/lib/library-layout";
 
+function countConstructCapable(placements: readonly PlacedObject[]): number {
+  let total = 0;
+  for (const placement of placements) {
+    const item = getCatalogItem(placement.catalogId);
+    if (item?.kind === "glb" && item.clip) {
+      total += 1;
+    }
+  }
+  return total;
+}
+
 export function AssetLibrary() {
-  const titleId = useId();
   const libraryItems = useMemo(() => getLibraryCatalogItems(), []);
   const placements = useMemo(
     () => buildLibraryPlacements(libraryItems),
@@ -37,6 +49,29 @@ export function AssetLibrary() {
   const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
     DEFAULT_ANIMATION_SETTINGS,
   );
+  const [constructReplayId, setConstructReplayId] = useState(0);
+  const [isConstructReplaying, setIsConstructReplaying] = useState(false);
+  const pendingReplayFinishesRef = useRef(0);
+  const constructCapableCount = useMemo(
+    () => countConstructCapable(placements),
+    [placements],
+  );
+
+  function handleConstructReplay() {
+    pendingReplayFinishesRef.current = constructCapableCount;
+    setConstructReplayId((replayId) => replayId + 1);
+    setIsConstructReplaying(constructCapableCount > 0);
+  }
+
+  function handleConstructReplayFinished() {
+    pendingReplayFinishesRef.current = Math.max(
+      0,
+      pendingReplayFinishesRef.current - 1,
+    );
+    if (pendingReplayFinishesRef.current === 0) {
+      setIsConstructReplaying(false);
+    }
+  }
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#1b1e1c] text-zinc-100">
@@ -52,32 +87,27 @@ export function AssetLibrary() {
         staticPreview
         cameraTarget={bounds.center}
         groundExtent={groundExtent}
+        constructReplayId={constructReplayId}
+        onConstructReplayFinished={handleConstructReplayFinished}
       />
 
       <header className="pointer-events-none absolute top-0 left-0 right-0 flex items-start justify-between gap-4 p-4">
-        <div className="pointer-events-auto max-w-md rounded-lg border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">
-            Asset library
-          </p>
-          <h1 id={titleId} className="mt-1 text-lg font-semibold tracking-tight">
-            Building catalog preview
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Auto-staged grid with footprint spacing — no overlap. Orbit to compare
-            silhouettes before dropping assets in the yard.
-          </p>
-          <Link
-            href="/"
-            className="mt-3 inline-flex rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/25 hover:bg-white/5"
-          >
-            Back to yard
-          </Link>
-        </div>
+        <Link
+          href="/"
+          className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs text-zinc-200 backdrop-blur-md transition hover:border-white/20 hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+        >
+          Back to yard
+        </Link>
         <div className="flex items-start gap-2">
           <AnimationSettingsPanel
             settings={animationSettings}
             onChange={setAnimationSettings}
           />
+          <ConstructReplayButton
+            isPlaying={isConstructReplaying}
+            onReplay={handleConstructReplay}
+          />
+          <AssetListPanel placements={placements} />
           <CameraSettingsPanel
             settings={cameraSettings}
             onChange={setCameraSettings}
@@ -85,41 +115,6 @@ export function AssetLibrary() {
           />
         </div>
       </header>
-
-      <aside
-        className="absolute bottom-4 left-4 right-4 flex flex-col gap-3 md:right-auto md:w-88"
-        aria-labelledby={titleId}
-      >
-        <div className="rounded-lg border border-white/10 bg-black/60 p-3 backdrop-blur-md">
-          <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-            Staged · {libraryItems.length}
-          </p>
-          <ul className="space-y-1 text-sm">
-            {placements.map((placement, index) => {
-              const item = getCatalogItem(placement.catalogId);
-              const footprint = item?.footprint;
-              return (
-                <li
-                  key={placement.id}
-                  className="flex items-center justify-between rounded px-2 py-1 text-zinc-300"
-                >
-                  <span>
-                    <span className="font-mono text-[11px] text-zinc-500">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>{" "}
-                    {item?.label ?? placement.catalogId}
-                  </span>
-                  <span className="font-mono text-[11px] text-zinc-500">
-                    {footprint
-                      ? `${footprint.width}×${footprint.depth}`
-                      : "default"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </aside>
     </div>
   );
 }

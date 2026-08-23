@@ -1,6 +1,6 @@
 "use client";
 
-import { Center, Clone, Grid, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
+import { Center, Clone, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
@@ -23,6 +23,7 @@ import {
   type Group,
   type Object3D,
 } from "three";
+import { YardGrid } from "@/components/yard-grid";
 import { DEFAULT_ANIMATION_SETTINGS, type AnimationSettings } from "@/lib/animation-settings";
 import {
   getSceneFogDistances,
@@ -36,8 +37,10 @@ import {
   type PlacedObject,
 } from "@/lib/catalog";
 import {
+  constructDriveModeForCatalog,
   EMPTY_CONSTRUCTION_STATE,
   isConstructionComplete,
+  libraryConstructPlayback,
 } from "@/lib/construction/driver";
 import type { ConstructionState } from "@/lib/construction/types";
 import { canPlaceAt } from "@/lib/placement-collision";
@@ -60,6 +63,9 @@ type StageCanvasProps = {
   groundExtent?: number;
   /** Live OpenClaw construction state keyed by catalog id. */
   constructionByCatalogId?: Record<string, ConstructionState>;
+  /** Increment to force a one-shot construct auto-play, even when driveMode is scrub. */
+  constructReplayId?: number;
+  onConstructReplayFinished?: () => void;
 };
 
 const GRID_STEP = 1;
@@ -327,6 +333,7 @@ function Ground({
   }
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
+    if (event.button !== 0) return;
     if (!placing || !placeCatalogId) return;
     event.stopPropagation();
     const { x, z } = event.point;
@@ -358,7 +365,7 @@ function Ground({
             />
           ))
         : null}
-      <Grid
+      <YardGrid
         position={[0, 0.02, 0]}
         args={[extent, extent]}
         cellSize={GRID_STEP}
@@ -370,7 +377,7 @@ function Ground({
         fadeStrength={0}
       />
       {placing && hoverCell ? (
-        <Grid
+        <YardGrid
           position={[hoverCell[0], 0.022, hoverCell[2]]}
           args={[footprint.width, footprint.depth]}
           cellSize={GRID_STEP}
@@ -562,6 +569,8 @@ function AnimatedGlb({
   playbackSpeed,
   constructionProgress,
   driveMode = "auto",
+  constructReplayId = 0,
+  onReplayFinished,
 }: {
   url: string;
   clip: string;
@@ -569,11 +578,19 @@ function AnimatedGlb({
   /** Scrub target 0–1 when driveMode is scrub. */
   constructionProgress?: number;
   driveMode?: "auto" | "scrub";
+  constructReplayId?: number;
+  onReplayFinished?: () => void;
 }) {
   const isScrubMode = driveMode === "scrub";
+  const consumedReplayIdRef = useRef(0);
+  const onReplayFinishedRef = useRef(onReplayFinished);
+  onReplayFinishedRef.current = onReplayFinished;
+  const [replayEpoch, setReplayEpoch] = useState(0);
+  const isReplayPass = constructReplayId > consumedReplayIdRef.current;
+  const isEffectiveScrub = isScrubMode && !isReplayPass;
   const { scene, animations } = useGLTF(url);
   const [constructDone, setConstructDone] = useState(
-    () => isScrubMode && isConstructionComplete(constructionProgress ?? 0),
+    () => isEffectiveScrub && isConstructionComplete(constructionProgress ?? 0),
   );
   const wrapRef = useRef<Group>(null);
   const actionsRef = useRef<AnimationAction[]>([]);
@@ -607,7 +624,9 @@ function AnimatedGlb({
       root.getObjectByName("ST_Beacon") ??
       root.getObjectByName("OC_Beacon") ??
       root.getObjectByName("CC_Beacon");
-    if (!beacon) return [6.4, 8.89, 2.95] as [number, number, number];
+    if (!beacon) {
+      return null;
+    }
     const world = new Vector3();
     beacon.getWorldPosition(world);
     return [world.x, world.y, world.z] as [number, number, number];
@@ -615,10 +634,15 @@ function AnimatedGlb({
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
-    const hideBeforeGrow = !isScrubMode;
+    const hideBeforeGrow = !isEffectiveScrub;
     if (clipsToPlay.length === 0) {
       if (wrap) {
         wrap.visible = true;
+      }
+      if (isReplayPass) {
+        consumedReplayIdRef.current = constructReplayId;
+        onReplayFinishedRef.current?.();
+        setReplayEpoch((epoch) => epoch + 1);
       }
       return;
     }
@@ -630,15 +654,16 @@ function AnimatedGlb({
       action.setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
       action.time = 0;
-      if (isScrubMode) {
+      if (isEffectiveScrub) {
         action.paused = true;
       } else {
+        action.paused = false;
         action.play();
       }
       return action;
     });
 
-    if (isScrubMode) {
+    if (isEffectiveScrub) {
       const leader = actions.reduce((longest, action) =>
         action.getClip().duration > longest.getClip().duration
           ? action
@@ -653,6 +678,7 @@ function AnimatedGlb({
       collapseUntilGrow(deferredGrowIns, targetTime, hideBeforeGrow);
       setConstructDone(isConstructionComplete(constructionProgress ?? 0));
     } else {
+      setConstructDone(false);
       mixer.update(0);
       collapseUntilGrow(deferredGrowIns, 0, hideBeforeGrow);
     }
@@ -662,7 +688,7 @@ function AnimatedGlb({
       wrap.visible = true;
     }
 
-    if (isScrubMode) {
+    if (isEffectiveScrub) {
       return () => {
         actionsRef.current = [];
         for (const action of actions) {
@@ -676,8 +702,14 @@ function AnimatedGlb({
     );
 
     const onFinished = (event: { action: AnimationAction }) => {
-      if (event.action === leader) {
-        setConstructDone(true);
+      if (event.action !== leader) {
+        return;
+      }
+      setConstructDone(true);
+      if (isReplayPass) {
+        consumedReplayIdRef.current = constructReplayId;
+        onReplayFinishedRef.current?.();
+        setReplayEpoch((epoch) => epoch + 1);
       }
     };
     mixer.addEventListener("finished", onFinished);
@@ -692,14 +724,18 @@ function AnimatedGlb({
     mixer,
     clipsToPlay,
     deferredGrowIns,
+    isEffectiveScrub,
+    isReplayPass,
     isScrubMode,
     driveMode,
+    constructReplayId,
     constructionProgress,
     playbackSpeed,
+    replayEpoch,
   ]);
 
   useEffect(() => {
-    if (!isScrubMode || constructionProgress === undefined) {
+    if (!isEffectiveScrub || constructionProgress === undefined) {
       return;
     }
     const actions = actionsRef.current;
@@ -716,7 +752,7 @@ function AnimatedGlb({
     mixer.update(0);
     collapseUntilGrow(deferredRef.current, targetTime, false);
     setConstructDone(isConstructionComplete(constructionProgress));
-  }, [constructionProgress, isScrubMode, mixer]);
+  }, [constructionProgress, isEffectiveScrub, mixer]);
 
   useFrame(() => {
     const actions = actionsRef.current;
@@ -724,13 +760,15 @@ function AnimatedGlb({
       return;
     }
     const maxTime = Math.max(...actions.map((action) => action.time));
-    collapseUntilGrow(deferredRef.current, maxTime, !isScrubMode);
+    collapseUntilGrow(deferredRef.current, maxTime, !isEffectiveScrub);
   });
 
   return (
     <group ref={wrapRef} visible={false}>
       <primitive object={root} />
-      {constructDone ? <AviationBeacon position={beaconPosition} /> : null}
+      {constructDone && beaconPosition ? (
+        <AviationBeacon position={beaconPosition} />
+      ) : null}
     </group>
   );
 }
@@ -740,22 +778,53 @@ function AssetPreview({
   staticPreview = false,
   playbackSpeed,
   constructionState,
+  constructReplayId = 0,
+  onReplayFinished,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
   playbackSpeed: number;
   constructionState?: ConstructionState;
+  constructReplayId?: number;
+  onReplayFinished?: () => void;
 }) {
+  const [activeReplayId, setActiveReplayId] = useState(0);
+
+  useLayoutEffect(() => {
+    if (constructReplayId > 0) {
+      setActiveReplayId(constructReplayId);
+    }
+  }, [constructReplayId]);
+
+  const isLibraryReplay =
+    staticPreview && activeReplayId > 0 && activeReplayId === constructReplayId;
+
   if (item.kind === "glb" && item.url) {
-    if (item.clip && !staticPreview) {
+    if (item.clip) {
       const resolvedState = constructionState ?? EMPTY_CONSTRUCTION_STATE;
+      const libraryPlayback = staticPreview
+        ? libraryConstructPlayback(isLibraryReplay)
+        : null;
       return (
         <AnimatedGlb
           url={item.url}
           clip={item.clip}
           playbackSpeed={playbackSpeed}
-          driveMode="scrub"
-          constructionProgress={resolvedState.progress}
+          driveMode={
+            libraryPlayback
+              ? libraryPlayback.driveMode
+              : constructDriveModeForCatalog(item.id, constructionState)
+          }
+          constructionProgress={
+            libraryPlayback ? libraryPlayback.progress : resolvedState.progress
+          }
+          constructReplayId={constructReplayId}
+          onReplayFinished={() => {
+            if (staticPreview) {
+              setActiveReplayId(0);
+            }
+            onReplayFinished?.();
+          }}
         />
       );
     }
@@ -772,6 +841,8 @@ function PlacedAsset({
   selectable = true,
   playbackSpeed,
   constructionState,
+  constructReplayId = 0,
+  onReplayFinished,
 }: {
   object: PlacedObject;
   selected: boolean;
@@ -780,6 +851,8 @@ function PlacedAsset({
   selectable?: boolean;
   playbackSpeed: number;
   constructionState?: ConstructionState;
+  constructReplayId?: number;
+  onReplayFinished?: () => void;
 }) {
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
@@ -790,8 +863,18 @@ function PlacedAsset({
       onClick={
         selectable
           ? (event) => {
+              if (event.button !== 0) return;
               event.stopPropagation();
               onSelect(object.id);
+            }
+          : undefined
+      }
+      onContextMenu={
+        selectable
+          ? (event) => {
+              event.stopPropagation();
+              event.nativeEvent.preventDefault();
+              onSelect(null);
             }
           : undefined
       }
@@ -802,6 +885,8 @@ function PlacedAsset({
           staticPreview={staticPreview}
           playbackSpeed={playbackSpeed}
           constructionState={constructionState}
+          constructReplayId={constructReplayId}
+          onReplayFinished={onReplayFinished}
         />
       </Suspense>
       {selectable && selected ? (
@@ -831,6 +916,8 @@ export function StageCanvas({
   cameraTarget = CAMERA_TARGET,
   groundExtent = 80,
   constructionByCatalogId = {},
+  constructReplayId = 0,
+  onConstructReplayFinished,
 }: StageCanvasProps) {
   const placingItem =
     !readOnly && placeCatalogId ? getCatalogItem(placeCatalogId) : null;
@@ -856,6 +943,13 @@ export function StageCanvas({
         gl.toneMapping = ACESFilmicToneMapping;
       }}
       onPointerMissed={() => onSelect(null)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        if (readOnly || !selectedId) {
+          return;
+        }
+        onSelect(null);
+      }}
     >
       <color attach="background" args={["#1b1e1c"]} />
       <fog
@@ -883,6 +977,8 @@ export function StageCanvas({
           selectable={!readOnly}
           playbackSpeed={animationSettings.playbackSpeed}
           constructionState={constructionByCatalogId[object.catalogId]}
+          constructReplayId={constructReplayId}
+          onReplayFinished={onConstructReplayFinished}
         />
       ))}
       <OrbitControls
