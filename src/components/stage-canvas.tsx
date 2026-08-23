@@ -1,6 +1,13 @@
 "use client";
 
-import { Center, Clone, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
+import {
+  Center,
+  Clone,
+  Environment,
+  OrbitControls,
+  useAnimations,
+  useGLTF,
+} from "@react-three/drei";
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
@@ -198,23 +205,28 @@ function getFootprintCellCenters(
   return cells;
 }
 
-function SceneEnvironment() {
+function SceneEnvironment({ groundExtent }: { groundExtent: number }) {
+  const shadowHalf = Math.max(36, groundExtent * 0.55);
+  const shadowFar = Math.max(96, groundExtent * 1.35 + 48);
+  const shadowMapSize = groundExtent > 80 ? 4096 : 2048;
+
   return (
     <>
       <hemisphereLight args={["#d8e4f0", "#3a3530", 0.62]} />
       <ambientLight intensity={0.22} />
+      <Environment preset="city" background={false} environmentIntensity={0.82} />
       <directionalLight
         castShadow
         position={[22, 34, 14]}
         intensity={1.55}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[shadowMapSize, shadowMapSize]}
         shadow-bias={-0.00012}
         shadow-normalBias={0.02}
-        shadow-camera-far={96}
-        shadow-camera-left={-36}
-        shadow-camera-right={36}
-        shadow-camera-top={36}
-        shadow-camera-bottom={-36}
+        shadow-camera-far={shadowFar}
+        shadow-camera-left={-shadowHalf}
+        shadow-camera-right={shadowHalf}
+        shadow-camera-top={shadowHalf}
+        shadow-camera-bottom={-shadowHalf}
       />
       <directionalLight position={[-14, 18, -10]} intensity={0.42} />
     </>
@@ -956,7 +968,7 @@ export function StageCanvas({
         attach="fog"
         args={["#1b1e1c", fogDistances.near, fogDistances.far]}
       />
-      <SceneEnvironment />
+      <SceneEnvironment groundExtent={groundExtent} />
       <Ground
         placing={placing}
         placeCatalogId={placeCatalogId}
