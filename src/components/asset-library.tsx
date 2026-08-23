@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AssetListPanel } from "@/components/asset-list-panel";
-import { CameraSettingsPanel } from "@/components/camera-settings-panel";
 import { ConstructReplayButton } from "@/components/construct-replay-button";
-import { DynamicSceneButton } from "@/components/dynamic-scene-button";
 import { StageCanvas } from "@/components/stage-canvas";
+import { StageChrome } from "@/components/stage-chrome";
 import {
   DEFAULT_ANIMATION_SETTINGS,
   type AnimationSettings,
 } from "@/lib/animation-settings";
-import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
-import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
-import { useDynamicScene } from "@/hooks/use-dynamic-scene";
-import { useLibraryExclusions } from "@/hooks/use-library-exclusions";
+import {
+  DEFAULT_CAMERA_SETTINGS,
+  type CameraSettings,
+  type StageCameraPose,
+} from "@/lib/camera-settings";
+import {
+  catalogHasConstructClip,
+  getCatalogItem,
+  type PlacedObject,
+} from "@/lib/catalog";
+import { useYardChrome } from "@/hooks/use-yard-chrome";
 import {
   buildLibraryPlacements,
   getLibraryBounds,
@@ -29,8 +34,7 @@ import { SHARED_STAGE_EXTENT } from "@/lib/stage-world";
 function countConstructCapable(placements: readonly PlacedObject[]): number {
   let total = 0;
   for (const placement of placements) {
-    const item = getCatalogItem(placement.catalogId);
-    if (item?.kind === "glb" && item.clip) {
+    if (catalogHasConstructClip(placement.catalogId)) {
       total += 1;
     }
   }
@@ -38,7 +42,26 @@ function countConstructCapable(placements: readonly PlacedObject[]): number {
 }
 
 export function AssetLibrary() {
-  const { excludedIds, excludeCatalogId, saveError } = useLibraryExclusions();
+  const {
+    objects,
+    placeCatalogId,
+    setPlaceCatalogId,
+    selectedId: yardSelectedId,
+    setSelectedId: setYardSelectedId,
+    isSandboxMode,
+    toggleSandboxMode,
+    excludedIds,
+    excludeCatalogId,
+    saveError,
+    isDynamicScene,
+    toggleDynamicScene,
+    sceneVariant,
+    selectSceneVariant,
+    agentStream,
+    agentYard,
+    handleResetYard,
+    handleRemoveObject,
+  } = useYardChrome();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const libraryItems = useMemo(
     () => getLibraryCatalogItems(excludedIds),
@@ -56,9 +79,9 @@ export function AssetLibrary() {
   const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
     DEFAULT_ANIMATION_SETTINGS,
   );
+  const [cameraPose, setCameraPose] = useState<StageCameraPose | null>(null);
   const [isConstructReplaying, setIsConstructReplaying] = useState(false);
-  const { isDynamicScene, toggleDynamicScene, sceneVariant, selectSceneVariant } =
-    useDynamicScene();
+  const pendingReplayFinishesRef = useRef(0);
   const constructCapableCount = useMemo(
     () => countConstructCapable(placements),
     [placements],
@@ -66,11 +89,26 @@ export function AssetLibrary() {
 
   function handleConstructReplay() {
     if (isConstructReplaying) {
+      pendingReplayFinishesRef.current = 0;
       setIsConstructReplaying(false);
       return;
     }
-    setIsConstructReplaying(constructCapableCount > 0);
+    if (constructCapableCount === 0) {
+      return;
+    }
+    pendingReplayFinishesRef.current = constructCapableCount;
+    setIsConstructReplaying(true);
   }
+
+  const handleConstructReplayFinished = useCallback(() => {
+    if (pendingReplayFinishesRef.current <= 0) {
+      return;
+    }
+    pendingReplayFinishesRef.current -= 1;
+    if (pendingReplayFinishesRef.current === 0) {
+      setIsConstructReplaying(false);
+    }
+  }, []);
 
   const selectedPlacement = placements.find(
     (placement) => placement.id === selectedId,
@@ -78,6 +116,10 @@ export function AssetLibrary() {
   const selectedItem = selectedPlacement
     ? getCatalogItem(selectedPlacement.catalogId)
     : undefined;
+  const placeItem = placeCatalogId ? getCatalogItem(placeCatalogId) : undefined;
+  const placementHint = placeItem
+    ? `Selected ${placeItem.label} · return to yard to place`
+    : `${libraryItems.length} assets · ${LIBRARY_COLUMN_COUNT}-col grid · ${LIBRARY_CELL_PADDING}u pad`;
 
   const handleRemovePlacement = useCallback(
     (placementId: string) => {
@@ -142,11 +184,13 @@ export function AssetLibrary() {
         cameraTarget={bounds.center}
         groundExtent={SHARED_STAGE_EXTENT}
         isConstructReplaying={isConstructReplaying}
+        onConstructReplayFinished={handleConstructReplayFinished}
         isDynamicScene={isDynamicScene}
         sceneVariant={sceneVariant}
+        onCameraPoseChange={setCameraPose}
       />
 
-      <header className="pointer-events-none absolute top-0 left-0 right-0 flex items-start justify-between gap-4 p-4">
+      <header className="pointer-events-none absolute top-0 left-0 p-4">
         <div className="flex flex-col items-start gap-2">
           <Link
             href="/"
@@ -173,24 +217,38 @@ export function AssetLibrary() {
             </p>
           ) : null}
         </div>
-        <div className="flex items-start gap-2">
-          <AnimationSettingsPanel
-            settings={animationSettings}
-            onChange={setAnimationSettings}
-          />
-          <DynamicSceneButton
-            isEnabled={isDynamicScene}
-            onToggle={toggleDynamicScene}
-            variant={sceneVariant}
-            onVariantChange={selectSceneVariant}
-          />
-          <CameraSettingsPanel
-            settings={cameraSettings}
-            onChange={setCameraSettings}
-            placementHint={`${libraryItems.length} assets · ${LIBRARY_COLUMN_COUNT}-col grid · ${LIBRARY_CELL_PADDING}u pad`}
-          />
-        </div>
       </header>
+
+      <StageChrome
+        isDynamicScene={isDynamicScene}
+        onToggleDynamicScene={toggleDynamicScene}
+        sceneVariant={sceneVariant}
+        onSceneVariantChange={selectSceneVariant}
+        objects={objects}
+        selectedId={yardSelectedId}
+        isSandboxMode={isSandboxMode}
+        onToggleSandboxMode={toggleSandboxMode}
+        onSelectObject={setYardSelectedId}
+        onResetYard={handleResetYard}
+        onRemoveObject={handleRemoveObject}
+        resetYardTitle="Clear models placed in the yard. This library grid stays."
+        placementHint={placementHint}
+        hoverCanPlace={null}
+        cameraSettings={cameraSettings}
+        onCameraSettingsChange={setCameraSettings}
+        animationSettings={animationSettings}
+        onAnimationSettingsChange={setAnimationSettings}
+        streamEnabled={agentStream.isEnabled}
+        streamStatus={agentStream.status}
+        onStreamToggle={agentStream.toggle}
+        isStreamLive={agentYard.isLive}
+        streamFetchError={agentYard.fetchError}
+        placeCatalogId={placeCatalogId}
+        onPlaceCatalogIdChange={setPlaceCatalogId}
+        excludedCatalogIds={excludedIds}
+        cameraPose={cameraPose}
+      />
+
       <div className="pointer-events-none absolute right-4 bottom-4 z-20 flex items-end gap-2">
         <AssetListPanel
           placements={placements}

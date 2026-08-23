@@ -13,3 +13,9 @@ export type ConstructionState = {
   agentStatus?: AgentStatus;
   isLive: boolean;
 };
+
+/** Shared 0–1 construct clock — pack site kit follows the building mixer. */
+export type ConstructClock = {
+  progress01: number;
+  isPlaying: boolean;
+};

@@ -1,6 +1,7 @@
 import type { CatalogItem, PlacedObject } from "@/lib/catalog-types";
 import { PALETTE_CATALOG } from "@/lib/construction/asset-registry";
 import { PACK_PALETTE_CATALOG } from "@/lib/pack-catalog";
+import { yawToFaceNorth } from "@/lib/stage-world";
 
 export type { CatalogFootprint, CatalogItem, PlacedObject } from "@/lib/catalog-types";
 
@@ -9,6 +10,17 @@ export const CATALOG: CatalogItem[] = [...PALETTE_CATALOG, ...PACK_PALETTE_CATAL
 
 export function getCatalogItem(catalogId: string) {
   return CATALOG.find((item) => item.id === catalogId);
+}
+
+/** True when the catalog entry ships a construct (or slice-fallback) clip name. */
+export function catalogHasConstructClip(catalogId: string): boolean {
+  const item = getCatalogItem(catalogId);
+  return item?.kind === "glb" && Boolean(item.clip);
+}
+
+/** Render yaw so the catalog front aims stage north (−Z). */
+export function catalogNorthYaw(item: CatalogItem): number {
+  return yawToFaceNorth(item.authoredFront);
 }
 
 /** GLB URL for drei `useGLTF` / `useGLTF.preload` — query string is the cache key. */

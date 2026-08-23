@@ -18,3 +18,24 @@ export function worldGroundSize(stageExtent: number): number {
 export function stageCompassDegrees(offsetX: number, offsetZ: number): number {
   return (Math.atan2(offsetX, offsetZ) * 180) / Math.PI;
 }
+
+/** Local axis of a GLB’s front before yard yaw. glTF / Blender −Y export = +Z. */
+export type AuthoredFrontAxis = "+x" | "-x" | "+z" | "-z";
+
+export const DEFAULT_AUTHORED_FRONT: AuthoredFrontAxis = "+z";
+
+/** Yaw (Y-up) that aims an authored front at world −Z. */
+export function yawToFaceNorth(
+  authoredFront: AuthoredFrontAxis = DEFAULT_AUTHORED_FRONT,
+): number {
+  switch (authoredFront) {
+    case "-z":
+      return 0;
+    case "+z":
+      return Math.PI;
+    case "+x":
+      return Math.PI / 2;
+    case "-x":
+      return -Math.PI / 2;
+  }
+}

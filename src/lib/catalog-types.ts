@@ -1,3 +1,5 @@
+import type { AuthoredFrontAxis } from "@/lib/stage-world";
+
 export type CatalogKind = "glb" | "primitive";
 
 export type CatalogFootprint = {
@@ -19,6 +21,10 @@ export type CatalogItem = {
   footprint?: CatalogFootprint;
   inLibrary?: boolean;
   projectFile?: string;
+  /** GLB front axis before north yaw. Default +Z (glTF / Blender −Y). */
+  authoredFront?: AuthoredFrontAxis;
+  /** Authored storey count — construct duration uses this first when set. */
+  floorCount?: number;
 };
 
 export type PlacedObject = {

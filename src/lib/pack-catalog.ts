@@ -11,6 +11,7 @@ type PackManifestItem = {
   footprint: { width: number; depth: number };
   clip?: string;
   inLibrary?: boolean;
+  floorCount?: number;
 };
 
 function isPackManifestItem(value: unknown): value is PackManifestItem {
@@ -48,5 +49,9 @@ export const PACK_PALETTE_CATALOG: CatalogItem[] = readPackManifestItems().map(
     footprint: item.footprint,
     clip: item.clip ?? "construct",
     inLibrary: item.inLibrary ?? true,
+    floorCount:
+      typeof item.floorCount === "number" && item.floorCount >= 1
+        ? item.floorCount
+        : undefined,
   }),
 );

@@ -11,8 +11,13 @@ import type { AnimationSettings } from "@/lib/animation-settings";
 import type { CameraSettings } from "@/lib/camera-settings";
 
 const PANEL_VISIBLE_SESSION_KEY = "openclaw-yard.controls-visible";
+const CONTROLS_TAB_SESSION_KEY = "openclaw-yard.controls-tab";
 
 type YardTabId = "assets" | "view" | "stream";
+
+function isYardTabId(value: string): value is YardTabId {
+  return value === "assets" || value === "view" || value === "stream";
+}
 
 type YardControlPanelProps = {
   objects: PlacedObject[];
@@ -22,6 +27,8 @@ type YardControlPanelProps = {
   onSelectObject: (id: string) => void;
   onResetYard: () => void;
   onRemoveObject: (id: string) => void;
+  resetYardTitle?: string;
+  isResetYardDisabled?: boolean;
   placementHint: string | null;
   hoverCanPlace: boolean | null;
   cameraSettings: CameraSettings;
@@ -56,6 +63,29 @@ function readPanelVisibleFromSession(): boolean {
 function writePanelVisibleToSession(isVisible: boolean): void {
   try {
     sessionStorage.setItem(PANEL_VISIBLE_SESSION_KEY, isVisible ? "1" : "0");
+  } catch {
+    // sessionStorage may be unavailable in private browsing
+  }
+}
+
+function readControlsTabFromSession(): YardTabId {
+  if (typeof window === "undefined") {
+    return "assets";
+  }
+  try {
+    const stored = sessionStorage.getItem(CONTROLS_TAB_SESSION_KEY);
+    if (stored && isYardTabId(stored)) {
+      return stored;
+    }
+  } catch {
+    return "assets";
+  }
+  return "assets";
+}
+
+function writeControlsTabToSession(tabId: YardTabId): void {
+  try {
+    sessionStorage.setItem(CONTROLS_TAB_SESSION_KEY, tabId);
   } catch {
     // sessionStorage may be unavailable in private browsing
   }
@@ -131,12 +161,22 @@ function PanelIcon() {
   );
 }
 
-function ResetYardButton({ onResetYard }: { onResetYard: () => void }) {
+function ResetYardButton({
+  onResetYard,
+  title,
+  isDisabled = false,
+}: {
+  onResetYard: () => void;
+  title?: string;
+  isDisabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onResetYard}
-      className="pointer-events-auto shrink-0 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-sm text-zinc-300 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
+      disabled={isDisabled}
+      title={title}
+      className="pointer-events-auto shrink-0 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-sm text-zinc-300 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:bg-black/70"
     >
       Reset yard
     </button>
@@ -205,6 +245,8 @@ export function YardControlPanel({
   onSelectObject,
   onResetYard,
   onRemoveObject,
+  resetYardTitle,
+  isResetYardDisabled = false,
   placementHint,
   hoverCanPlace,
   cameraSettings,
@@ -221,7 +263,9 @@ export function YardControlPanel({
   const [isPanelVisible, setIsPanelVisible] = useState(() =>
     readPanelVisibleFromSession(),
   );
-  const [activeTab, setActiveTab] = useState<YardTabId>("assets");
+  const [activeTab, setActiveTab] = useState<YardTabId>(() =>
+    readControlsTabFromSession(),
+  );
 
   const togglePanelVisible = useCallback(() => {
     setIsPanelVisible((visible) => {
@@ -234,7 +278,11 @@ export function YardControlPanel({
   if (!isPanelVisible) {
     return (
       <div className="flex items-start gap-2">
-        <ResetYardButton onResetYard={onResetYard} />
+        <ResetYardButton
+          onResetYard={onResetYard}
+          title={resetYardTitle}
+          isDisabled={isResetYardDisabled}
+        />
         <button
           type="button"
           onClick={togglePanelVisible}
@@ -260,7 +308,11 @@ export function YardControlPanel({
 
   return (
     <div className="flex items-start gap-2">
-      <ResetYardButton onResetYard={onResetYard} />
+      <ResetYardButton
+        onResetYard={onResetYard}
+        title={resetYardTitle}
+        isDisabled={isResetYardDisabled}
+      />
       <div
         id={panelId}
         className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl"
@@ -299,7 +351,10 @@ export function YardControlPanel({
                 id={`${panelId}-tab-${tabId}`}
                 aria-selected={isActive}
                 aria-controls={`${panelId}-tabpanel-${tabId}`}
-                onClick={() => setActiveTab(tabId)}
+                onClick={() => {
+                  setActiveTab(tabId);
+                  writeControlsTabToSession(tabId);
+                }}
                 className={`relative px-3 py-2 text-xs font-medium transition ${
                   isActive
                     ? "text-amber-100"

@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import {
   ACESFilmicToneMapping,
@@ -37,6 +38,8 @@ import {
   type HemisphereLight,
   type Object3D,
 } from "three";
+import { RoofPool } from "@/components/roof-pool";
+import { SkyscraperSiteKit } from "@/components/skyscraper-site-kit";
 import { LivingMountains } from "@/components/living-mountains";
 import { LivingTrees } from "@/components/living-trees";
 import { liveWorldSize, mountainRingRadii } from "@/lib/live-backdrop";
@@ -67,6 +70,7 @@ import {
 } from "@/lib/camera-settings";
 import { useCatalogGlbPreload } from "@/hooks/use-catalog-glb-preload";
 import {
+  catalogNorthYaw,
   getCatalogItem,
   type CatalogFootprint,
   type CatalogItem,
@@ -89,7 +93,24 @@ import {
   isConstructionComplete,
   libraryConstructPlayback,
 } from "@/lib/construction/driver";
-import type { ConstructionState } from "@/lib/construction/types";
+import type { ConstructClock, ConstructionState } from "@/lib/construction/types";
+import {
+  applyHollowCompleteVisibility,
+  isHollowCompleteState,
+} from "@/lib/construction/complete-visibility";
+import { shouldMountRoofPool } from "@/lib/construction/roof-pool";
+import {
+  collectObjectNames,
+  constructActionTimeScale,
+  constructLeaderDuration,
+  pickConstructLeaderClip,
+  resolveConstructFloorCount,
+} from "@/lib/construction/construct-duration";
+import {
+  measureAuthoredBounds,
+  shouldMountSiteKit,
+  writeConstructClock,
+} from "@/lib/construction/site-kit";
 import { canPlaceAt } from "@/lib/placement-collision";
 
 type StageCanvasProps = {
@@ -104,14 +125,16 @@ type StageCanvasProps = {
   onPlacementHoverChange?: (canPlace: boolean | null) => void;
   /** Read-only library preview — no click-to-place. */
   readOnly?: boolean;
-  /** Skip construct clips; show resting GLB pose. */
+  /** Library grid — still auto-plays construct once, then hollows. */
   staticPreview?: boolean;
   cameraTarget?: [number, number, number];
   groundExtent?: number;
   /** Live OpenClaw construction state keyed by catalog id. */
   constructionByCatalogId?: Record<string, ConstructionState>;
-  /** Library construct replay — loop construct clips while true. */
+  /** Library construct replay — play construct clips once while true. */
   isConstructReplaying?: boolean;
+  /** Fired when a construct clip reaches the end (LoopOnce). */
+  onConstructReplayFinished?: () => void;
   /** Ambient life: lights, fog, windows, sway. */
   isDynamicScene?: boolean;
   sceneVariant?: SceneVariant;
@@ -858,27 +881,83 @@ function getDeferredGrowInsFromClips(
   return [...merged.values()];
 }
 
+function pickLeaderAction(
+  actions: readonly AnimationAction[],
+): AnimationAction | undefined {
+  if (actions.length === 0) {
+    return undefined;
+  }
+  const clips = actions.map((action) => action.getClip());
+  const leaderClip = pickConstructLeaderClip(clips);
+  if (!leaderClip) {
+    return actions[0];
+  }
+  return (
+    actions.find((action) => action.getClip() === leaderClip) ?? actions[0]
+  );
+}
+
+function syncConstructClock(
+  clock: ConstructClock | undefined,
+  actions: readonly AnimationAction[],
+  isPlaying: boolean,
+  scrubProgress?: number,
+) {
+  if (actions.length === 0) {
+    writeConstructClock(clock, scrubProgress ?? 1, false);
+    return;
+  }
+  if (scrubProgress !== undefined && !isPlaying) {
+    writeConstructClock(clock, scrubProgress, false);
+    return;
+  }
+  const leader = pickLeaderAction(actions);
+  const duration = Math.max(leader?.getClip().duration ?? 0, 1e-6);
+  writeConstructClock(clock, (leader?.time ?? 0) / duration, isPlaying);
+}
+
+function clampActionsToLeaderTime(
+  actions: readonly AnimationAction[],
+  leaderTime: number,
+) {
+  for (const action of actions) {
+    action.time = Math.min(leaderTime, action.getClip().duration);
+  }
+}
+
 function AnimatedGlb({
   url,
   clip,
   playbackSpeed,
+  catalogFloorCount,
   constructionProgress,
   driveMode = "auto",
   isConstructReplaying = false,
   isDynamicScene = false,
+  constructClockRef,
+  onHollowCompleteChange,
+  onConstructReplayFinished,
 }: {
   url: string;
   clip: string;
   playbackSpeed: number;
+  catalogFloorCount?: number;
   /** Scrub target 0–1 when driveMode is scrub. */
   constructionProgress?: number;
   driveMode?: "auto" | "scrub";
   isConstructReplaying?: boolean;
   isDynamicScene?: boolean;
+  constructClockRef?: RefObject<ConstructClock>;
+  onHollowCompleteChange?: (isHollowComplete: boolean) => void;
+  onConstructReplayFinished?: () => void;
 }) {
   const isScrubMode = driveMode === "scrub";
   const constructionProgressRef = useRef(constructionProgress);
   constructionProgressRef.current = constructionProgress;
+  const wasReplayingRef = useRef(isConstructReplaying);
+  const didNotifyEmptyReplayRef = useRef(false);
+  const onConstructReplayFinishedRef = useRef(onConstructReplayFinished);
+  onConstructReplayFinishedRef.current = onConstructReplayFinished;
   const isEffectiveScrub = isScrubMode && !isConstructReplaying;
   const { scene, animations } = useGLTF(url);
   const [constructDone, setConstructDone] = useState(
@@ -897,6 +976,15 @@ function AnimatedGlb({
   useEffect(() => {
     mixer.timeScale = playbackSpeed;
   }, [mixer, playbackSpeed]);
+  const floorCount = useMemo(
+    () =>
+      resolveConstructFloorCount({
+        names: collectObjectNames(root),
+        meshHeightM: measureAuthoredBounds(root).height,
+        catalogFloorCount,
+      }),
+    [catalogFloorCount, root],
+  );
   const clipsToPlay = useMemo(
     () => resolveConstructClips(clips, clip),
     [clip, clips],
@@ -910,26 +998,42 @@ function AnimatedGlb({
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     const hideBeforeGrow = !isEffectiveScrub;
+    const endedReplay = wasReplayingRef.current && !isConstructReplaying;
+    wasReplayingRef.current = isConstructReplaying;
+    if (!isConstructReplaying) {
+      didNotifyEmptyReplayRef.current = false;
+    }
     if (clipsToPlay.length === 0) {
       if (wrap) {
         wrap.visible = true;
+      }
+      writeConstructClock(constructClockRef?.current, 1, false);
+      setConstructDone(true);
+      applyHollowCompleteVisibility(root, true);
+      if (isConstructReplaying && !didNotifyEmptyReplayRef.current) {
+        didNotifyEmptyReplayRef.current = true;
+        onConstructReplayFinishedRef.current?.();
       }
       return;
     }
 
     mixer.timeScale = playbackSpeed;
+    const leaderDuration = Math.max(
+      constructLeaderDuration(clipsToPlay),
+      1e-6,
+    );
+    const actionTimeScale = constructActionTimeScale(leaderDuration, floorCount);
     const actions = clipsToPlay.map((activeClip) => {
       const action = mixer.clipAction(activeClip);
       action.reset();
-      if (isConstructReplaying) {
-        action.setLoop(LoopRepeat, Infinity);
-        action.clampWhenFinished = false;
-      } else {
-        action.setLoop(LoopOnce, 1);
-        action.clampWhenFinished = true;
-      }
+      action.setLoop(LoopOnce, 1);
+      action.clampWhenFinished = true;
+      action.timeScale = actionTimeScale;
       action.time = 0;
       if (isEffectiveScrub) {
+        action.paused = true;
+      } else if (endedReplay) {
+        action.time = Math.min(leaderDuration, action.getClip().duration);
         action.paused = true;
       } else {
         action.paused = false;
@@ -939,25 +1043,34 @@ function AnimatedGlb({
     });
 
     if (isEffectiveScrub) {
-      const leader = actions.reduce((longest, action) =>
-        action.getClip().duration > longest.getClip().duration
-          ? action
-          : longest,
-      );
       const targetTime =
-        (constructionProgressRef.current ?? 0) * leader.getClip().duration;
-      for (const action of actions) {
-        action.time = Math.min(targetTime, action.getClip().duration);
-      }
+        (constructionProgressRef.current ?? 0) * leaderDuration;
+      clampActionsToLeaderTime(actions, targetTime);
       mixer.update(0);
       collapseUntilGrow(deferredGrowIns, targetTime, hideBeforeGrow);
-      setConstructDone(
-        isConstructionComplete(constructionProgressRef.current ?? 0),
+      syncConstructClock(
+        constructClockRef?.current,
+        actions,
+        false,
+        constructionProgressRef.current,
       );
+      const isDone = isConstructionComplete(
+        constructionProgressRef.current ?? 0,
+      );
+      setConstructDone(isDone);
+      applyHollowCompleteVisibility(root, isDone);
+    } else if (endedReplay) {
+      mixer.update(0);
+      collapseUntilGrow(deferredGrowIns, leaderDuration, hideBeforeGrow);
+      syncConstructClock(constructClockRef?.current, actions, false, 1);
+      setConstructDone(true);
+      applyHollowCompleteVisibility(root, true);
     } else {
       setConstructDone(false);
+      applyHollowCompleteVisibility(root, false);
       mixer.update(0);
       collapseUntilGrow(deferredGrowIns, 0, hideBeforeGrow);
+      syncConstructClock(constructClockRef?.current, actions, true, 0);
     }
 
     actionsRef.current = actions;
@@ -965,7 +1078,7 @@ function AnimatedGlb({
       wrap.visible = true;
     }
 
-    if (isEffectiveScrub || isConstructReplaying) {
+    if (isEffectiveScrub) {
       return () => {
         actionsRef.current = [];
         for (const action of actions) {
@@ -974,15 +1087,21 @@ function AnimatedGlb({
       };
     }
 
-    const leader = actions.reduce((longest, action) =>
-      action.getClip().duration > longest.getClip().duration ? action : longest,
-    );
+    const leader = pickLeaderAction(actions);
 
     const onFinished = (event: { action: AnimationAction }) => {
-      if (event.action !== leader) {
+      if (!leader || event.action !== leader) {
         return;
       }
+      clampActionsToLeaderTime(actions, leader.getClip().duration);
+      for (const action of actions) {
+        action.paused = true;
+      }
+      mixer.update(0);
       setConstructDone(true);
+      if (isConstructReplaying) {
+        onConstructReplayFinishedRef.current?.();
+      }
     };
     mixer.addEventListener("finished", onFinished);
     return () => {
@@ -1001,7 +1120,19 @@ function AnimatedGlb({
     isScrubMode,
     driveMode,
     playbackSpeed,
+    floorCount,
+    constructClockRef,
+    root,
   ]);
+
+  useEffect(() => {
+    const isHollow = isHollowCompleteState({
+      constructDone,
+      isConstructReplaying,
+    });
+    applyHollowCompleteVisibility(root, isHollow);
+    onHollowCompleteChange?.(isHollow);
+  }, [constructDone, isConstructReplaying, onHollowCompleteChange, root]);
 
   useEffect(() => {
     if (!isEffectiveScrub || constructionProgress === undefined) {
@@ -1011,17 +1142,22 @@ function AnimatedGlb({
     if (actions.length === 0) {
       return;
     }
-    const leader = actions.reduce((longest, action) =>
-      action.getClip().duration > longest.getClip().duration ? action : longest,
-    );
-    const targetTime = constructionProgress * leader.getClip().duration;
-    for (const action of actions) {
-      action.time = Math.min(targetTime, action.getClip().duration);
-    }
+    const leader = pickLeaderAction(actions);
+    const leaderDuration = Math.max(leader?.getClip().duration ?? 0, 1e-6);
+    const targetTime = constructionProgress * leaderDuration;
+    clampActionsToLeaderTime(actions, targetTime);
     mixer.update(0);
     collapseUntilGrow(deferredRef.current, targetTime, false);
-    setConstructDone(isConstructionComplete(constructionProgress));
-  }, [constructionProgress, isEffectiveScrub, mixer]);
+    syncConstructClock(
+      constructClockRef?.current,
+      actions,
+      false,
+      constructionProgress,
+    );
+    const isDone = isConstructionComplete(constructionProgress);
+    setConstructDone(isDone);
+    applyHollowCompleteVisibility(root, isDone);
+  }, [constructionProgress, isEffectiveScrub, mixer, constructClockRef, root]);
 
   useEffect(() => {
     if (!isDynamicScene || !constructDone) {
@@ -1053,8 +1189,23 @@ function AnimatedGlb({
     if (actions.length === 0) {
       return;
     }
-    const maxTime = Math.max(...actions.map((action) => action.time));
-    collapseUntilGrow(deferredRef.current, maxTime, !isEffectiveScrub);
+    const leader = pickLeaderAction(actions);
+    const leaderDuration = Math.max(leader?.getClip().duration ?? 0, 1e-6);
+    const leaderTime = leader?.time ?? 0;
+    if (leaderTime >= leaderDuration - 1e-4) {
+      clampActionsToLeaderTime(actions, leaderDuration);
+    }
+    collapseUntilGrow(deferredRef.current, leaderTime, !isEffectiveScrub);
+    syncConstructClock(
+      constructClockRef?.current,
+      actions,
+      !isEffectiveScrub && !constructDone,
+      isEffectiveScrub ? constructionProgressRef.current : undefined,
+    );
+    applyHollowCompleteVisibility(
+      root,
+      isHollowCompleteState({ constructDone, isConstructReplaying }),
+    );
   });
 
   return (
@@ -1076,6 +1227,9 @@ function AssetPreview({
   constructionState,
   isConstructReplaying = false,
   isDynamicScene = false,
+  constructClockRef,
+  onHollowCompleteChange,
+  onConstructReplayFinished,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
@@ -1083,6 +1237,9 @@ function AssetPreview({
   constructionState?: ConstructionState;
   isConstructReplaying?: boolean;
   isDynamicScene?: boolean;
+  constructClockRef?: RefObject<ConstructClock>;
+  onHollowCompleteChange?: (isHollowComplete: boolean) => void;
+  onConstructReplayFinished?: () => void;
 }) {
   const isLibraryReplay = staticPreview && isConstructReplaying;
 
@@ -1097,6 +1254,7 @@ function AssetPreview({
           url={item.url}
           clip={item.clip}
           playbackSpeed={playbackSpeed}
+          catalogFloorCount={item.floorCount}
           driveMode={
             libraryPlayback
               ? libraryPlayback.driveMode
@@ -1107,6 +1265,9 @@ function AssetPreview({
           }
           isConstructReplaying={isConstructReplaying}
           isDynamicScene={isDynamicScene}
+          constructClockRef={constructClockRef}
+          onHollowCompleteChange={onHollowCompleteChange}
+          onConstructReplayFinished={onConstructReplayFinished}
         />
       );
     }
@@ -1125,6 +1286,7 @@ function PlacedAsset({
   constructionState,
   isConstructReplaying = false,
   isDynamicScene = false,
+  onConstructReplayFinished,
 }: {
   object: PlacedObject;
   selected: boolean;
@@ -1135,13 +1297,21 @@ function PlacedAsset({
   constructionState?: ConstructionState;
   isConstructReplaying?: boolean;
   isDynamicScene?: boolean;
+  onConstructReplayFinished?: () => void;
 }) {
+  const constructClockRef = useRef<ConstructClock>({
+    progress01: 0,
+    isPlaying: true,
+  });
+  const [isHollowComplete, setIsHollowComplete] = useState(false);
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
+  const isConstructActive = !isHollowComplete;
 
   return (
     <group
       position={object.position}
+      rotation={[0, catalogNorthYaw(item), 0]}
       onClick={
         selectable
           ? (event) => {
@@ -1169,7 +1339,22 @@ function PlacedAsset({
           constructionState={constructionState}
           isConstructReplaying={isConstructReplaying}
           isDynamicScene={isDynamicScene}
+          constructClockRef={constructClockRef}
+          onHollowCompleteChange={setIsHollowComplete}
+          onConstructReplayFinished={onConstructReplayFinished}
         />
+        {shouldMountSiteKit(item.id, isConstructActive) &&
+        item.kind === "glb" &&
+        item.url ? (
+          <SkyscraperSiteKit
+            buildingUrl={item.url}
+            footprint={item.footprint}
+            constructClockRef={constructClockRef}
+          />
+        ) : null}
+        {shouldMountRoofPool(item.id) && item.kind === "glb" && item.url ? (
+          <RoofPool url={item.url} isFilled={!isConstructActive} />
+        ) : null}
       </Suspense>
       {selectable && selected ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
@@ -1202,6 +1387,7 @@ export function StageCanvas({
   isDynamicScene = false,
   sceneVariant = DEFAULT_SCENE_VARIANT,
   onCameraPoseChange,
+  onConstructReplayFinished,
 }: StageCanvasProps) {
   useCatalogGlbPreload(!readOnly ? placeCatalogId : null);
   const placingItem =
@@ -1284,6 +1470,7 @@ export function StageCanvas({
           constructionState={constructionByCatalogId[object.catalogId]}
           isConstructReplaying={isConstructReplaying}
           isDynamicScene={isDynamicScene}
+          onConstructReplayFinished={onConstructReplayFinished}
         />
       ))}
       <OrbitControls

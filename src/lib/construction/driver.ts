@@ -19,15 +19,11 @@ export const EMPTY_CONSTRUCTION_STATE: ConstructionState = {
 
 export type ConstructDriveMode = "auto" | "scrub";
 
-/** Staged lots scrub; scheduled heroes auto-play until a live stream drives them. */
+/** Live OpenClaw streams scrub; every construct clip auto-plays once otherwise. */
 export function constructDriveModeForCatalog(
-  catalogId: string,
+  _catalogId: string,
   constructionState: ConstructionState | undefined,
 ): ConstructDriveMode {
-  const definition = getBuildingDefinition(catalogId);
-  if (definition?.tier === "staged") {
-    return "scrub";
-  }
   if (constructionState?.isLive) {
     return "scrub";
   }
@@ -86,7 +82,7 @@ export function isConstructionComplete(progress: number): boolean {
   return progress >= 0.99;
 }
 
-/** Catalog rest pose — scrub to complete so silhouettes match across bind styles. */
+/** Library rest — hollow-complete (clip end). Replay grows from 0. */
 export const LIBRARY_REST_PROGRESS = 1;
 
 export function libraryConstructPlayback(isReplay: boolean): {
