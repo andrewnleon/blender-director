@@ -16,7 +16,7 @@ Auth and database are **project choices** — wire when needed; skills `auth-bou
 
 ## Workflow Architecture
 
-**Entry:** `/orcha` → `.cursor/commands/orcha.md` → agent `.cursor/agents/orchestrator.md` · `agents/core/workflow.md`
+**Entry:** `/ops` → user `~/.cursor/agents/orcha.md` · `agents/core/workflow.md`. Not OpenClaw Orcha.
 
 | Mode | When | Flow |
 | ---- | ---- | ---- |
@@ -26,7 +26,7 @@ Auth and database are **project choices** — wire when needed; skills `auth-bou
 
 ## CLI runtime
 
-- Command: `/orcha`
+- Command: `/ops`
 - Caveman: **ultra**
 - Stack: nextjs-app-router
 

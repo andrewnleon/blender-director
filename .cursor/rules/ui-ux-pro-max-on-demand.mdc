@@ -1,8 +1,0 @@
----
-description: Marketplace UI skills on demand only.
-alwaysApply: true
----
-
-# Marketplace UI skills — on demand
-
-Default UI: **practical-ui** + **app-ui**. Do not load **ui-ux-pro-max** unless user approved redesign.
