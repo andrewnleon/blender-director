@@ -29,11 +29,8 @@ def base_gltf_export_kwargs(*, export_animations: bool) -> dict[str, object]:
 
 
 def skyscraper_gltf_export_kwargs() -> dict[str, object]:
-    """Hero tower — one merged `construct` clip, optimized keyframes."""
+    """Hero tower — optimized keyframes before gltf-transform post-pass."""
     return {
         **base_gltf_export_kwargs(export_animations=True),
-        "export_merge_animation": "NLA_TRACK",
-        "export_nla_strips_merged_animation_name": "construct",
         "export_optimize_animation_size": True,
-        "export_extra_animations": False,
     }

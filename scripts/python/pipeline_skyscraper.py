@@ -1,4 +1,4 @@
-"""Re-export skyscraper.glb with merged construct clip + animation optimize."""
+"""Re-export skyscraper.glb with animation optimize + restack + gltf-transform."""
 from __future__ import annotations
 
 import os
@@ -11,7 +11,7 @@ if SCRIPTS not in sys.path:
 
 from export_stage_models import export_building
 from lookdev_stage_assets import process_blend
-from merge_construct_nla import push_prefix_actions_to_nla
+from optimize_glb_export import optimize_glb_in_place
 from restack_construct_glb import GLB_PATH, inspect_glb, restack_glb
 
 BLEND_PATH = os.path.join(ROOT, "projects", "skyscraper", "skyscraper.blend")
@@ -22,14 +22,6 @@ def main() -> None:
         raise FileNotFoundError(BLEND_PATH)
 
     process_blend(BLEND_PATH, "ST_")
-
-    import bpy
-
-    bpy.ops.wm.open_mainfile(filepath=BLEND_PATH)
-    pushed = push_prefix_actions_to_nla("ST_")
-    bpy.ops.wm.save_as_mainfile(filepath=BLEND_PATH)
-    print("NLA_PUSHED", pushed)
-
     out_path = export_building(
         "skyscraper",
         "skyscraper.glb",
@@ -37,13 +29,20 @@ def main() -> None:
         mesh_prefix="ST_",
         export_animations=True,
     )
-    size_before_restack = os.path.getsize(out_path)
+    size_after_export = os.path.getsize(out_path)
     restack_result = restack_glb()
     inspect_glb(GLB_PATH)
-    size_after = os.path.getsize(out_path)
+    size_after_restack = os.path.getsize(out_path)
+    # Restack alone is ~7.4 MB (was ~12 MB). gltf-transform resample can drop to ~240 KB
+    # but needs visual QA on construct playback — skip by default.
+    size_final = size_after_restack
+    if os.environ.get("SKYSCRAPER_GLTF_OPTIMIZE") == "1":
+        size_final = optimize_glb_in_place(out_path, preserve_scene=True)
+
     print("EXPORTED", out_path)
-    print("BYTES_BEFORE_RESTACK", size_before_restack)
-    print("BYTES_AFTER_RESTACK", size_after)
+    print("BYTES_AFTER_EXPORT", size_after_export)
+    print("BYTES_AFTER_RESTACK", size_after_restack)
+    print("BYTES_FINAL", size_final)
     print("RESTACK", restack_result)
 
 

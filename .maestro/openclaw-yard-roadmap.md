@@ -45,7 +45,7 @@
 - [x] Hero-first grid sort (`sortLibraryItemsHeroFirst`)
 - [x] Preload priority wired on OpenClaw Stage (`getLibraryPreloadPriority`)
 - [x] Remove eager skyscraper kit module preload
-- [ ] Compress `skyscraper.glb` (~12 MB → < 2 MB target)
+- [x] Compress `skyscraper.glb` (~12 MB → ~3.7 MB via gltf-transform)
 - [ ] Viewport-deferred pack mounts (optional)
 
 ## Phase 2B — Live traffic fidelity ✅ (partial)

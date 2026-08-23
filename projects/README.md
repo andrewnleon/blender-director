@@ -21,6 +21,14 @@ export_stage_models.export_stage_models()
 
 Ships hero GLBs under `public/models/` — bind pose at frame **1**, `construct` animation clip.
 
+**Hero skyscraper (compress export):**
+
+```bash
+blender --background --python scripts/python/pipeline_skyscraper.py
+```
+
+Runs lookdev → glTF export → `restack_construct_glb` → `gltf-transform optimize` (~12 MB → ~3.7 MB).
+
 **Agent stations (batch):**
 
 ```bash

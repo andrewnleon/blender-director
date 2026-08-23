@@ -75,7 +75,7 @@ export const BUILDING_DEFINITIONS: readonly BuildingAssetDefinition[] = [
     prefix: "ST_",
     projectFile: "skyscraper/skyscraper.blend",
     footprint: { width: 10, depth: 10 },
-    url: "/models/skyscraper.glb?v=45",
+    url: "/models/skyscraper.glb?v=46",
     clip: "construct",
     maxCount: 1,
     inLibrary: true,
