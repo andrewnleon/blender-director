@@ -19,15 +19,20 @@ export const EMPTY_CONSTRUCTION_STATE: ConstructionState = {
 
 export type ConstructDriveMode = "auto" | "scrub";
 
-/** Live OpenClaw streams scrub; every construct clip auto-plays once otherwise. */
+/**
+ * OpenClaw yard construct drive — **not** library mode.
+ * Library uses `staticPreview` + `libraryConstructPlayback()` in stage-canvas;
+ * yard uses this helper only (never library layout / replay rules).
+ *
+ * Yard always scrubs: bind pose at progress 0 on page load / idle map;
+ * live or frozen construction maps advance progress without auto-playing clips.
+ * Catalog id / state kept for call-site stability (progress read elsewhere).
+ */
 export function constructDriveModeForCatalog(
   _catalogId: string,
-  constructionState: ConstructionState | undefined,
+  _constructionState: ConstructionState | undefined,
 ): ConstructDriveMode {
-  if (constructionState?.isLive) {
-    return "scrub";
-  }
-  return "auto";
+  return "scrub";
 }
 
 export function constructionStateForCatalog(

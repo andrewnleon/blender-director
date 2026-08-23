@@ -10,6 +10,8 @@
 
 **Secondary stack (web viewer):** `stage/` — Next.js 16 App Router, React, TypeScript, Tailwind v4, Three.js / R3F.
 
+**Yard vs library (construction UX):** OpenClaw yard (`openclaw-yard.tsx`) owns placement + stream-driven scrub via `constructDriveModeForCatalog`. Asset library (`asset-library.tsx`) uses `staticPreview` + `libraryConstructPlayback` only — do not pass yard stream maps or duplicate library layout rules into the yard.
+
 Auth and database are **project choices** — wire when needed; skills `auth-boundaries` and `drizzle-neon` describe patterns.
 
 ## Workflow Architecture

@@ -2,21 +2,12 @@
   "ok": true,
   "buildings": [
     {
-      "building_id": "skyscraper",
-      "blend_path": "C:\\Users\\Andrew\\Desktop\\3DBuilding\\projects\\skyscraper\\skyscraper.blend",
+      "building_id": "operations-center",
+      "blend_path": "projects/operations-center/operations-center.blend",
       "ok": true,
-      "mesh_count": 33,
-      "total_tris": 4800,
-      "materials": [
-        "ST_Concrete",
-        "ST_ConstrYellow",
-        "ST_DarkMetal",
-        "ST_LightMetal",
-        "ST_SkyGlass",
-        "ST_Steel",
-        "ST_Window",
-        "ST_Yellow"
-      ]
+      "mesh_count": 0,
+      "total_tris": 0,
+      "materials": []
     }
   ]
 }

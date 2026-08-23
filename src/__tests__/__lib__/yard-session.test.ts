@@ -28,7 +28,7 @@ describe("yard-session", () => {
       parseYardObjects([
         {
           id: "a",
-          catalogId: "skyscraper",
+          catalogId: "operations-center",
           position: [1, 2],
         },
       ]),
@@ -37,9 +37,9 @@ describe("yard-session", () => {
   });
 
   it("parses palette selection from session values", () => {
-    assert.equal(parsePlaceCatalogId(null, "skyscraper"), "skyscraper");
-    assert.equal(parsePlaceCatalogId("", "skyscraper"), null);
-    assert.equal(parsePlaceCatalogId("skyscraper", null), "skyscraper");
-    assert.equal(parsePlaceCatalogId("not-a-catalog-item", "skyscraper"), "skyscraper");
+    assert.equal(parsePlaceCatalogId(null, "operations-center"), "operations-center");
+    assert.equal(parsePlaceCatalogId("", "operations-center"), null);
+    assert.equal(parsePlaceCatalogId("operations-center", null), "operations-center");
+    assert.equal(parsePlaceCatalogId("not-a-catalog-item", "operations-center"), "operations-center");
   });
 });

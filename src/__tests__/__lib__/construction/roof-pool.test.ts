@@ -13,7 +13,6 @@ describe("roof-pool", () => {
     assert.equal(shouldMountRoofPool(ROOF_POOL_CATALOG_ID), true);
     assert.equal(shouldMountRoofPool("pack-futuristic-city-2560"), true);
     assert.equal(shouldMountRoofPool("pack-futuristic-city-2484"), false);
-    assert.equal(shouldMountRoofPool("skyscraper"), false);
   });
 
   it("sizes water from complete-hull roof deck and insets", () => {

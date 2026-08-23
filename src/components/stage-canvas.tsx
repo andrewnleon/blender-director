@@ -69,6 +69,8 @@ import {
   type StageCameraPose,
 } from "@/lib/camera-settings";
 import { useCatalogGlbPreload } from "@/hooks/use-catalog-glb-preload";
+import { useProgressiveCatalogPreload } from "@/hooks/use-progressive-catalog-preload";
+import { StagePlacementPlaceholder } from "@/components/stage-placement-placeholder";
 import {
   catalogNorthYaw,
   getCatalogItem,
@@ -139,6 +141,8 @@ type StageCanvasProps = {
   isDynamicScene?: boolean;
   sceneVariant?: SceneVariant;
   onCameraPoseChange?: (pose: StageCameraPose) => void;
+  /** Preload first when stream or hero buildings should warm before placement. */
+  priorityPreloadCatalogIds?: readonly string[];
 };
 
 const GRID_STEP = 1;
@@ -931,7 +935,7 @@ function AnimatedGlb({
   playbackSpeed,
   catalogFloorCount,
   constructionProgress,
-  driveMode = "auto",
+  driveMode = "scrub",
   isConstructReplaying = false,
   isDynamicScene = false,
   constructClockRef,
@@ -966,6 +970,7 @@ function AnimatedGlb({
   const wrapRef = useRef<Group>(null);
   const actionsRef = useRef<AnimationAction[]>([]);
   const deferredRef = useRef<DeferredGrow[]>([]);
+  const leaderDurationRef = useRef(1);
   const root = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse(prepareAssetMesh);
@@ -995,6 +1000,20 @@ function AnimatedGlb({
   );
   deferredRef.current = deferredGrowIns;
 
+  useEffect(() => {
+    const actions = actionsRef.current;
+    if (actions.length === 0) {
+      return;
+    }
+    const actionTimeScale = constructActionTimeScale(
+      leaderDurationRef.current,
+      floorCount,
+    );
+    for (const action of actions) {
+      action.timeScale = actionTimeScale;
+    }
+  }, [floorCount]);
+
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     const hideBeforeGrow = !isEffectiveScrub;
@@ -1022,6 +1041,7 @@ function AnimatedGlb({
       constructLeaderDuration(clipsToPlay),
       1e-6,
     );
+    leaderDurationRef.current = leaderDuration;
     const actionTimeScale = constructActionTimeScale(leaderDuration, floorCount);
     const actions = clipsToPlay.map((activeClip) => {
       const action = mixer.clipAction(activeClip);
@@ -1117,10 +1137,6 @@ function AnimatedGlb({
     deferredGrowIns,
     isEffectiveScrub,
     isConstructReplaying,
-    isScrubMode,
-    driveMode,
-    playbackSpeed,
-    floorCount,
     constructClockRef,
     root,
   ]);
@@ -1366,9 +1382,6 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=44");
-useGLTF.preload("/models/operations-center.glb?v=9");
-
 export function StageCanvas({
   objects,
   selectedId,
@@ -1388,8 +1401,17 @@ export function StageCanvas({
   sceneVariant = DEFAULT_SCENE_VARIANT,
   onCameraPoseChange,
   onConstructReplayFinished,
+  priorityPreloadCatalogIds = [],
 }: StageCanvasProps) {
   useCatalogGlbPreload(!readOnly ? placeCatalogId : null);
+  const placedCatalogIds = useMemo(
+    () => objects.map((object) => object.catalogId),
+    [objects],
+  );
+  const mountableCatalogIds = useProgressiveCatalogPreload({
+    priorityCatalogIds: priorityPreloadCatalogIds,
+    catalogIds: placedCatalogIds,
+  });
   const placingItem =
     !readOnly && placeCatalogId ? getCatalogItem(placeCatalogId) : null;
   const placing = placingItem !== null;
@@ -1458,21 +1480,29 @@ export function StageCanvas({
         isDynamicScene={isDynamicScene}
         sceneVariant={sceneVariant}
       />
-      {objects.map((object) => (
-        <PlacedAsset
-          key={object.id}
-          object={object}
-          selected={object.id === selectedId}
-          onSelect={onSelect}
-          staticPreview={staticPreview}
-          selectable={!readOnly}
-          playbackSpeed={animationSettings.playbackSpeed}
-          constructionState={constructionByCatalogId[object.catalogId]}
-          isConstructReplaying={isConstructReplaying}
-          isDynamicScene={isDynamicScene}
-          onConstructReplayFinished={onConstructReplayFinished}
-        />
-      ))}
+      {objects.map((object) =>
+        mountableCatalogIds.has(object.catalogId) ? (
+          <PlacedAsset
+            key={object.id}
+            object={object}
+            selected={object.id === selectedId}
+            onSelect={onSelect}
+            staticPreview={staticPreview}
+            selectable={!readOnly}
+            playbackSpeed={animationSettings.playbackSpeed}
+            constructionState={constructionByCatalogId[object.catalogId]}
+            isConstructReplaying={isConstructReplaying}
+            isDynamicScene={isDynamicScene}
+            onConstructReplayFinished={onConstructReplayFinished}
+          />
+        ) : (
+          <StagePlacementPlaceholder
+            key={object.id}
+            catalogId={object.catalogId}
+            position={object.position}
+          />
+        ),
+      )}
       <OrbitControls
         makeDefault
         enablePan={!placing}

@@ -46,6 +46,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Pack source assets (large Blender/FBX — keep local; ship exported GLBs only)
-public/models/packs/blender/*.blend
-public/models/packs/blender/*.fbx
+# Pack source assets (large Blender/FBX/textures — keep local; ship exported GLBs only)
+public/models/packs/blender/**
+
+# Legacy hero exports (deprecated — not in catalog)
+public/models/command-center.glb
+public/models/dozer.glb
+public/models/ind-factory-a.glb
+public/models/ind-factory-b.glb
+public/models/ind-plant.glb
+public/models/sky-tower-a.glb
+public/models/sky-tower-b.glb
+public/models/sky-tower-c.glb

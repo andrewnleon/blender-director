@@ -6,13 +6,13 @@ Put `.glb` / `.gltf` files here. They are served from `/models/<filename>`.
 
 | GLB | Source blend |
 |-----|----------------|
-| `skyscraper.glb` | `projects/skyscraper/skyscraper.blend` — hero tower; `construct` clip (~15s). |
+| `operations-center.glb` | `projects/operations-center/operations-center.blend` — orchestrator HQ; `construct` clip. |
 
-Palette entry lives in `src/lib/catalog.ts`.
+Palette entries live in `src/lib/construction/asset-registry.ts`.
 
-## Deprecated (removed from catalog)
+## Deprecated (removed from repo)
 
-`command-center.glb`, `sky-tower-a/b/c.glb`, `ind-factory-a/b.glb`, `ind-plant.glb`, `dozer.glb` — legacy cityscape assets; no longer exported or placeable.
+Legacy GLBs (`command-center`, towers, factories, `dozer`) may be absent from the stage catalog. Hero `skyscraper.glb` is catalogued and exported from `projects/skyscraper/skyscraper.blend`.
 
 ## Re-export
 

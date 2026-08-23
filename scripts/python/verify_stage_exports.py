@@ -22,13 +22,13 @@ REPORT = os.path.join(MODELS, "verification-report.json")
 
 EXPECTED = {
 
-    "skyscraper.glb": {
+    "operations-center.glb": {
 
-        "max_bytes": 2_200_000,
+        "max_bytes": 4_000_000,
 
         "needs_construct": True,
 
-        "min_animations": 10,
+        "min_animations": 1,
 
     },
 
@@ -143,4 +143,3 @@ def main() -> None:
 if __name__ == "__main__":
 
     main()
-

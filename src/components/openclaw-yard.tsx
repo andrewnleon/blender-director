@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { canPlaceAt } from "@/lib/placement-collision";
 import { useYardChrome } from "@/hooks/use-yard-chrome";
 import { StageCanvas } from "@/components/stage-canvas";
@@ -105,14 +105,30 @@ export function OpenClawYard() {
     placeCatalogId && canPlaceCatalogItem(placeCatalogId, objects, isSandboxMode)
       ? getCatalogItem(placeCatalogId)
       : null;
-  const skyscraperAtCap =
-    !isSandboxMode && !canPlaceCatalogItem("skyscraper", objects);
+  const atPlacementCap =
+    placeCatalogId &&
+    !isSandboxMode &&
+    !canPlaceCatalogItem(placeCatalogId, objects);
+  const cappedLabel = placeCatalogId
+    ? getCatalogItem(placeCatalogId)?.label
+    : null;
+  const priorityPreloadCatalogIds = useMemo(() => {
+    const ids: string[] = [];
+    if (agentStream.isEnabled) {
+      ids.push("operations-center");
+    }
+    if (placeCatalogId) {
+      ids.push(placeCatalogId);
+    }
+    return ids;
+  }, [agentStream.isEnabled, placeCatalogId]);
+
   const placementHint = placing
     ? hoverCanPlace === false
       ? `Placing ${placing.label} · cell occupied — pick another spot`
       : `Placing ${placing.label} · hover grid, click to snap`
-    : skyscraperAtCap
-      ? "Skyscraper already in yard · reset to place again"
+    : atPlacementCap && cappedLabel
+      ? `${cappedLabel} already in yard · reset to place again`
       : null;
 
   return (
@@ -124,6 +140,7 @@ export function OpenClawYard() {
         cameraSettings={cameraSettings}
         animationSettings={animationSettings}
         constructionByCatalogId={agentYard.constructionByCatalogId}
+        priorityPreloadCatalogIds={priorityPreloadCatalogIds}
         onPlace={handlePlace}
         onSelect={setSelectedId}
         onPlacementHoverChange={setHoverCanPlace}

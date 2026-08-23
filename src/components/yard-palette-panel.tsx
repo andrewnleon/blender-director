@@ -8,6 +8,11 @@ import {
   getVisibleCatalogItems,
   type PlacedObject,
 } from "@/lib/catalog";
+import {
+  yardChromeDockedPanelClass,
+  yardChromeIconButtonClass,
+  yardChromeIconButtonActiveClass,
+} from "@/components/yard-chrome-styles";
 
 const PANEL_VISIBLE_SESSION_KEY = "openclaw-yard.palette-visible";
 
@@ -23,7 +28,7 @@ type YardPalettePanelProps = {
 
 function readPanelVisibleFromSession(): boolean {
   if (typeof window === "undefined") {
-    return true;
+    return false;
   }
   try {
     const stored = sessionStorage.getItem(PANEL_VISIBLE_SESSION_KEY);
@@ -34,9 +39,9 @@ function readPanelVisibleFromSession(): boolean {
       return true;
     }
   } catch {
-    return true;
+    return false;
   }
-  return true;
+  return false;
 }
 
 function writePanelVisibleToSession(isVisible: boolean): void {
@@ -85,7 +90,48 @@ function PaletteIcon() {
   );
 }
 
-export function YardPalettePanel({
+type YardPalettePanelTriggerProps = {
+  isOpen: boolean;
+  onToggle: () => void;
+  hasActivePlacement: boolean;
+  panelId: string;
+};
+
+export function YardPalettePanelTrigger({
+  isOpen,
+  onToggle,
+  hasActivePlacement,
+  panelId,
+}: YardPalettePanelTriggerProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
+      aria-controls={panelId}
+      aria-label={isOpen ? "Hide building palette" : "Show building palette"}
+      title="Palette"
+      className={`${yardChromeIconButtonClass} ${
+        isOpen ? yardChromeIconButtonActiveClass : ""
+      }`}
+    >
+      <PaletteIcon />
+      {hasActivePlacement ? (
+        <span
+          className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-200"
+          aria-hidden="true"
+        />
+      ) : null}
+    </button>
+  );
+}
+
+type YardPalettePanelSurfaceProps = YardPalettePanelProps & {
+  panelId: string;
+  onClose: () => void;
+};
+
+export function YardPalettePanelSurface({
   objects,
   placeCatalogId,
   isSandboxMode,
@@ -93,54 +139,20 @@ export function YardPalettePanel({
   placementHint,
   hoverCanPlace,
   excludedCatalogIds,
-}: YardPalettePanelProps) {
-  const panelId = useId();
+  panelId,
+  onClose,
+}: YardPalettePanelSurfaceProps) {
   const visibleCatalog = useMemo(
     () => getVisibleCatalogItems(excludedCatalogIds),
     [excludedCatalogIds],
   );
-  const [isPanelVisible, setIsPanelVisible] = useState(() =>
-    readPanelVisibleFromSession(),
-  );
-
-  const togglePanelVisible = useCallback(() => {
-    setIsPanelVisible((visible) => {
-      const nextVisible = !visible;
-      writePanelVisibleToSession(nextVisible);
-      return nextVisible;
-    });
-  }, []);
-
-  if (!isPanelVisible) {
-    return (
-      <button
-        type="button"
-        onClick={togglePanelVisible}
-        aria-expanded={false}
-        aria-controls={panelId}
-        aria-label="Show building palette"
-        className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
-      >
-        <PaletteIcon />
-        <span>Palette</span>
-        {objects.length > 0 ? (
-          <span
-            className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400"
-            aria-label={`${objects.length} placed in yard`}
-          >
-            {objects.length}
-          </span>
-        ) : null}
-      </button>
-    );
-  }
 
   return (
     <div
       id={panelId}
-      className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl"
+      className={yardChromeDockedPanelClass}
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
         <div>
           <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/70">
             Yard
@@ -149,7 +161,7 @@ export function YardPalettePanel({
         </div>
         <button
           type="button"
-          onClick={togglePanelVisible}
+          onClick={onClose}
           aria-expanded={true}
           aria-controls={panelId}
           aria-label="Hide building palette"
@@ -230,5 +242,38 @@ export function YardPalettePanel({
         </div>
       </div>
     </div>
+  );
+}
+
+export function YardPalettePanel(props: YardPalettePanelProps) {
+  const panelId = useId();
+  const [isPanelVisible, setIsPanelVisible] = useState(() =>
+    readPanelVisibleFromSession(),
+  );
+
+  const togglePanelVisible = useCallback(() => {
+    setIsPanelVisible((visible) => {
+      const nextVisible = !visible;
+      writePanelVisibleToSession(nextVisible);
+      return nextVisible;
+    });
+  }, []);
+
+  return (
+    <>
+      <YardPalettePanelTrigger
+        isOpen={isPanelVisible}
+        onToggle={togglePanelVisible}
+        hasActivePlacement={Boolean(props.placeCatalogId)}
+        panelId={panelId}
+      />
+      {isPanelVisible ? (
+        <YardPalettePanelSurface
+          {...props}
+          panelId={panelId}
+          onClose={togglePanelVisible}
+        />
+      ) : null}
+    </>
   );
 }

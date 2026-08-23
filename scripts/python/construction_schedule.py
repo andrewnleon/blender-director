@@ -1,10 +1,10 @@
 """Single source of truth — floor beats tie structure reveal to crane height.
 
-Customization knobs (edit here; animate_skyscraper + restack_construct_glb import this):
+Customization knobs (edit here; export and restack scripts import this):
 
 | Param | Role |
 |-------|------|
-| FLOORS, HEIGHT, PAD_Z | Tower geometry (mirror build_skyscraper) |
+| FLOORS, HEIGHT, PAD_Z | Tower geometry reference |
 | FLOOR_SPAN | Restacked seconds per floor stack window |
 | STACK_T0 | Restacked time when floor 1 column pour starts |
 | FOUNDATION_END, FOOTINGS_END | Pre-stack foundation / footing beats |
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# --- Geometry (keep aligned with build_skyscraper.py) ---
+# --- Geometry reference ---
 PAD_Z = 0.32
 HEIGHT = 18.0
 FLOORS = 12
@@ -63,7 +63,7 @@ MAST_GROW = INTER_FLOOR_GAP
 MAST_GROW_FRACTION = MAST_GROW / FLOOR_SPAN
 
 # --- Blender animation (sync raise frames to restack grow fraction) ---
-# Mirror animate_skyscraper lift chain: column, core, steel, deck, slab + overhead.
+# Mirror construct lift chain: column, core, steel, deck, slab + overhead.
 _BLENDER_LIFT_DURATIONS = (18, 16, 20, 16, 16)
 _BLENDER_LIFT_OVERHEAD = 10  # BOLT_HOLD(4) + DROP_HOLD(6)
 BLENDER_FLOOR_FRAMES = sum(d + _BLENDER_LIFT_OVERHEAD for d in _BLENDER_LIFT_DURATIONS)

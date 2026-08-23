@@ -1,14 +1,21 @@
-"""Export hero skyscraper blend to public/models/skyscraper.glb."""
+"""Export stage building blends (incl. hero skyscraper) to public/models/*.glb."""
 
 from __future__ import annotations
 
 
 
 import os
+import sys
 
 
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+SCRIPTS = os.path.dirname(os.path.abspath(__file__))
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)
+
+from gltf_export_options import base_gltf_export_kwargs
 
 PROJECTS = os.path.join(ROOT, "projects")
 
@@ -35,19 +42,12 @@ CONSTRUCT_CLIP = "construct"
 
 
 EXPORTS = [
-
     {
-
         "building_id": "skyscraper",
-
         "filename": "skyscraper.glb",
-
         "rest_frame": 1,
-
         "export_animations": True,
-
         "mesh_prefix": "ST_",
-
     },
 
     {
@@ -298,33 +298,14 @@ def export_building(
 
     out_path = os.path.join(OUT_DIR, filename)
 
-    export_kwargs = dict(
-
-        filepath=out_path,
-
-        export_format="GLB",
-
-        collection=coll_name,
-
-        use_active_collection_with_nested=True,
-
-        export_apply=True,
-
-        export_yup=True,
-
-        export_animations=export_animations,
-
-        export_lights=False,
-
-        export_cameras=False,
-
-        use_visible=False,
-
-        use_renderable=False,
-
-        export_image_format="AUTO",
-
-    )
+    export_kwargs = {
+        **base_gltf_export_kwargs(export_animations=export_animations),
+        "filepath": out_path,
+        "collection": coll_name,
+        "use_active_collection_with_nested": True,
+        "use_visible": False,
+        "use_renderable": False,
+    }
 
 
 
@@ -389,4 +370,3 @@ def export_stage_models() -> dict[str, str]:
 if __name__ == "__main__":
 
     export_stage_models()
-

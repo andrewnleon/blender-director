@@ -5,6 +5,11 @@ import {
   SCENE_VARIANTS,
   type SceneVariant,
 } from "@/lib/scene-lighting";
+import {
+  yardChromeIconButtonActiveClass,
+  yardChromeIconButtonClass,
+  yardChromePopoverClass,
+} from "@/components/yard-chrome-styles";
 
 type DynamicSceneButtonProps = {
   isEnabled: boolean;
@@ -13,6 +18,25 @@ type DynamicSceneButtonProps = {
   onVariantChange: (variant: SceneVariant) => void;
 };
 
+function LiveSceneIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="10" cy="10" r="3.25" />
+      <path
+        d="M10 2.5v1.5M10 16v1.5M2.5 10h1.5M16 10h1.5M4.8 4.8l1.1 1.1M14.1 14.1l1.1 1.1M4.8 15.2l1.1-1.1M14.1 5.9l1.1-1.1"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function DynamicSceneButton({
   isEnabled,
   onToggle,
@@ -20,45 +44,47 @@ export function DynamicSceneButton({
   onVariantChange,
 }: DynamicSceneButtonProps) {
   return (
-    <div className="pointer-events-auto flex flex-col items-stretch gap-2">
+    <div className="relative">
       <button
         type="button"
         aria-pressed={isEnabled}
+        aria-expanded={isEnabled}
         aria-label={isEnabled ? "Turn off live scene" : "Turn on live scene"}
+        title={isEnabled ? "Live scene on" : "Live scene off"}
         onClick={onToggle}
-        className={`rounded-lg border px-3 py-2 text-xs backdrop-blur-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
-          isEnabled
-            ? "border-amber-300/60 bg-amber-200/15 text-amber-100"
-            : "border-white/10 bg-black/55 text-zinc-200 hover:border-white/20 hover:bg-black/65"
+        className={`${yardChromeIconButtonClass} ${
+          isEnabled ? yardChromeIconButtonActiveClass : ""
         }`}
       >
-        Live scene
+        <LiveSceneIcon />
       </button>
       {isEnabled ? (
         <div
           role="radiogroup"
           aria-label="Live scene weather"
-          className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/55 p-1 backdrop-blur-md"
+          className={`${yardChromePopoverClass} w-auto min-w-[11rem] gap-1 p-1`}
         >
-          {SCENE_VARIANTS.map((option) => {
-            const isSelected = option === variant;
-            return (
-              <button
-                key={option}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => onVariantChange(option)}
-                className={`min-h-8 rounded-md px-2 text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 ${
-                  isSelected
-                    ? "bg-white/15 text-zinc-50"
-                    : "text-zinc-300 hover:bg-white/10 hover:text-zinc-100"
-                }`}
-              >
-                {SCENE_VARIANT_LABELS[option]}
-              </button>
-            );
-          })}
+          <div className="grid grid-cols-2 gap-1">
+            {SCENE_VARIANTS.map((option) => {
+              const isSelected = option === variant;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => onVariantChange(option)}
+                  className={`min-h-8 rounded-md px-2 text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 ${
+                    isSelected
+                      ? "bg-white/15 text-zinc-50"
+                      : "text-zinc-300 hover:bg-white/10 hover:text-zinc-100"
+                  }`}
+                >
+                  {SCENE_VARIANT_LABELS[option]}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : null}
     </div>

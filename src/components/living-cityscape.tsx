@@ -14,7 +14,7 @@ import {
 import { cityRingRadii } from "@/lib/live-backdrop";
 import type { SceneGroundLook, SceneVariant } from "@/lib/scene-lighting";
 
-/** Hero skyscraper is 18 m on a 10 m lot. Backdrop uses the same lot scale. */
+/** Reference tower is 18 m on a 10 m lot. Backdrop uses the same lot scale. */
 const LOT_METERS = 10;
 const HERO_TOWER_HEIGHT = 18;
 const CITY_NEAR_RATIO = 0.55;

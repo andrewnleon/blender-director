@@ -1,4 +1,4 @@
-"""Shared construction-clip grammar — skyscraper language for any building.
+"""Shared construction-clip grammar for staged buildings.
 
 Timing only. Blender I/O lives in construction_crane.py / export scripts.
 """

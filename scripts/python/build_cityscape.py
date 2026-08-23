@@ -1,6 +1,6 @@
 """Skyscrapers + industrial buildings for the Command Center site.
 
-DEPRECATED: legacy cityscape. Use build_skyscraper.py for the hero tower.
+DEPRECATED: legacy cityscape. Not used in the stage catalog.
 """
 import bpy
 import bmesh

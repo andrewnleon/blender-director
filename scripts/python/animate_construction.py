@@ -1,6 +1,6 @@
 """10-stage C&C construction animation for the Command Center.
 
-DEPRECATED: use animate_skyscraper.py for the hero skyscraper pipeline.
+DEPRECATED: legacy command-center pipeline. Use operations-center scripts instead.
 """
 import os
 import bpy

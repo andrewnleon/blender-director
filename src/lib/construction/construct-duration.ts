@@ -1,15 +1,15 @@
 import type { Object3D } from "three";
-import { SKYSCRAPER_SITE_AUTHORING } from "./site-kit";
+import { SITE_KIT_AUTHORING } from "./site-kit";
 
 /**
- * Hero construct (`animate_skyscraper.py`): END≈968 @ 24 fps, 12 floors, 18 m cage.
+ * Reference construct timing: END≈968 @ 24 fps, 12 floors, 18 m cage.
  * Wall-clock target is `SECONDS_PER_FLOOR * floorCount` so a 3-floor house
  * finishes before a 12-floor tower even when both clips start together.
  */
 export const HERO_CONSTRUCT_END_FRAME = 968;
 export const HERO_CONSTRUCT_FPS = 24;
 export const HERO_FLOOR_COUNT = 12;
-export const HERO_HEIGHT_M = SKYSCRAPER_SITE_AUTHORING.cageHeight;
+export const HERO_HEIGHT_M = SITE_KIT_AUTHORING.cageHeight;
 export const HERO_CONSTRUCT_DURATION_S =
   HERO_CONSTRUCT_END_FRAME / HERO_CONSTRUCT_FPS;
 
@@ -117,7 +117,7 @@ export function isCraneConstructClip(clipName: string): boolean {
 /**
  * Shared construct timeline length. Per-object Blender exports have no
  * `construct` clip — boom/jib/hook actions often keep keys after the build
- * (skyscraper boom ≈370s vs beacon ≈186s). Using those as leader timeScales
+ * (long crane boom vs beacon). Using those as leader timeScales
  * the tower too fast and leaves the jib spinning after floors clamp.
  */
 export function constructLeaderDuration(

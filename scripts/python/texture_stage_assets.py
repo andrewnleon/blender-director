@@ -2,9 +2,6 @@
 
 Headless (no MCP):
 
-    blender --background projects/skyscraper/skyscraper.blend \\
-        --python scripts/python/texture_stage_assets.py
-
     blender --background projects/operations-center/operations-center.blend \\
         --python scripts/python/texture_stage_assets.py
 """

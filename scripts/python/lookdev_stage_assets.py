@@ -364,7 +364,7 @@ def process_all_projects() -> None:
 
     targets = [
 
-        ("skyscraper/skyscraper.blend", "ST_"),
+        ("operations-center/operations-center.blend", "OC_"),
 
     ]
 

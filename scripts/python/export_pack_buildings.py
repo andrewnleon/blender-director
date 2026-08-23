@@ -2,7 +2,7 @@
 
 Normalizes each mesh so the longer plan axis is TARGET_LOT_M (10 m), keeps
 aspect ratio, seats the pad on Z=0, and recenters the footprint. Adds a
-skyscraper-style construct clip: crane on pad, floor stack, Lego snap, crane gone.
+shared construct clip: crane on pad, floor stack, Lego snap, crane gone.
 """
 
 from __future__ import annotations
@@ -396,26 +396,26 @@ def snap_parts_off_at_end(parts: list[bpy.types.Object], clip_end: int) -> None:
     prefs.keyframe_new_interpolation_type = previous_interp
 
 
+from gltf_export_options import base_gltf_export_kwargs
+
+
 def export_selected_glb(objects: list[bpy.types.Object], filepath: str) -> None:
     bpy.ops.object.select_all(action="DESELECT")
     for obj in objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
-    bpy.ops.export_scene.gltf(
-        filepath=filepath,
-        export_format="GLB",
-        use_selection=True,
-        export_apply=False,
-        export_yup=True,
-        export_animations=True,
-        export_animation_mode="ACTIVE_ACTIONS",
-        export_merge_animation="ACTION",
-        export_nla_strips_merged_animation_name=CONSTRUCT_CLIP,
-        export_anim_slide_to_zero=True,
-        export_current_frame=True,
-        export_lights=False,
-        export_cameras=False,
-    )
+    export_kwargs = {
+        **base_gltf_export_kwargs(export_animations=True),
+        "filepath": filepath,
+        "use_selection": True,
+        "export_apply": False,
+        "export_animation_mode": "ACTIVE_ACTIONS",
+        "export_merge_animation": "ACTION",
+        "export_nla_strips_merged_animation_name": CONSTRUCT_CLIP,
+        "export_anim_slide_to_zero": True,
+        "export_current_frame": True,
+    }
+    bpy.ops.export_scene.gltf(**export_kwargs)
 
 
 def cleanup(objects: list[bpy.types.Object]) -> None:

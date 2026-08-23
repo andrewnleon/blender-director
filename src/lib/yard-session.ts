@@ -2,7 +2,9 @@ import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
 
 export const YARD_OBJECTS_SESSION_KEY = "openclaw-yard.objects";
 export const PLACE_CATALOG_SESSION_KEY = "openclaw-yard.place-catalog-id";
-export const DEFAULT_PLACE_CATALOG_ID = "skyscraper";
+export const DEFAULT_PLACE_CATALOG_ID = "operations-center";
+
+/** Yard session keys — OpenClaw yard placement only. Library grid uses `library-layout.ts`; construct replay uses `libraryConstructPlayback`, not yard stream state. */
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);

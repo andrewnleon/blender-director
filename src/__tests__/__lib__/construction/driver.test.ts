@@ -7,15 +7,22 @@ import {
 } from "@/lib/construction/driver";
 
 describe("construct drive defaults", () => {
-  it("auto-plays pack, staged, and hero lots when the stream is idle", () => {
-    assert.equal(constructDriveModeForCatalog("skyscraper", undefined), "auto");
+  it("scrubs all yard lots at bind pose when idle (no auto-play on load)", () => {
     assert.equal(
       constructDriveModeForCatalog("operations-center", undefined),
-      "auto",
+      "scrub",
+    );
+    assert.equal(
+      constructDriveModeForCatalog("operations-center", {
+        stage: 0,
+        progress: 0,
+        isLive: false,
+      }),
+      "scrub",
     );
     assert.equal(
       constructDriveModeForCatalog("pack-residential-001", undefined),
-      "auto",
+      "scrub",
     );
     assert.equal(
       constructDriveModeForCatalog("pack-residential-001", {
@@ -23,16 +30,47 @@ describe("construct drive defaults", () => {
         progress: 0,
         isLive: false,
       }),
-      "auto",
+      "scrub",
+    );
+    assert.equal(
+      constructDriveModeForCatalog("skyscraper", undefined),
+      "scrub",
     );
   });
 
-  it("scrubs only while a live OpenClaw stream drives the lot", () => {
+  it("scrubs while a live OpenClaw stream drives the lot", () => {
     assert.equal(
       constructDriveModeForCatalog("pack-residential-001", {
         stage: 2,
         progress: 0.4,
         isLive: true,
+      }),
+      "scrub",
+    );
+  });
+
+  it("holds scrub when stream pauses with any staged progress", () => {
+    assert.equal(
+      constructDriveModeForCatalog("operations-center", {
+        stage: 0,
+        progress: 0,
+        isLive: false,
+      }),
+      "scrub",
+    );
+    assert.equal(
+      constructDriveModeForCatalog("operations-center", {
+        stage: 1,
+        progress: 0.33,
+        isLive: false,
+      }),
+      "scrub",
+    );
+    assert.equal(
+      constructDriveModeForCatalog("operations-center", {
+        stage: 3,
+        progress: 1,
+        isLive: false,
       }),
       "scrub",
     );

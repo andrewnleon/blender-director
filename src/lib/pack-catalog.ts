@@ -37,7 +37,7 @@ function readPackManifestItems(): PackManifestItem[] {
   return raw.items.filter(isPackManifestItem);
 }
 
-/** Bundled Blender pack exports — construct clips use skyscraper crane grammar. */
+/** Bundled Blender pack exports — construct clips use shared crane grammar. */
 export const PACK_PALETTE_CATALOG: CatalogItem[] = readPackManifestItems().map(
   (item) => ({
     id: item.id,

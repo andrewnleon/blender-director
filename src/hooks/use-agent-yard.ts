@@ -26,7 +26,7 @@ function isTaskArray(value: unknown): value is AgentTask[] {
 }
 
 export function useAgentYard(options: UseAgentYardOptions) {
-  const { streamEnabled, streamConnected, lastStreamEvent } = options;
+  const { streamEnabled, lastStreamEvent } = options;
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -98,7 +98,10 @@ export function useAgentYard(options: UseAgentYardOptions) {
     };
   }, []);
 
-  const isLive = streamEnabled && streamConnected && isLoaded;
+  // Scrub while stream is on + data loaded. Do not tie to socket.connected —
+  // SSE reconnect sets status "reconnecting" and used to flip isLive off,
+  // which restarted every construct clip from t=0.
+  const isLive = streamEnabled && isLoaded;
   const liveConstructionByCatalogId = useMemo(
     () => (isLive ? buildConstructionMap(agents, tasks, true) : {}),
     [agents, tasks, isLive],

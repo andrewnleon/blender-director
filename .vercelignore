@@ -1,0 +1,12 @@
+# Pack Blender sources — ship exported GLBs only
+public/models/packs/blender/**
+
+# Legacy hero exports (not in catalog)
+public/models/command-center.glb
+public/models/dozer.glb
+public/models/ind-factory-a.glb
+public/models/ind-factory-b.glb
+public/models/ind-plant.glb
+public/models/sky-tower-a.glb
+public/models/sky-tower-b.glb
+public/models/sky-tower-c.glb

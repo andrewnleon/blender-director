@@ -9,6 +9,11 @@ import { CameraSettingsFields } from "@/components/camera-settings-fields";
 import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
 import type { AnimationSettings } from "@/lib/animation-settings";
 import type { CameraSettings } from "@/lib/camera-settings";
+import {
+  yardChromeDockedPanelClass,
+  yardChromeIconButtonClass,
+  yardChromeIconButtonActiveClass,
+} from "@/components/yard-chrome-styles";
 
 const PANEL_VISIBLE_SESSION_KEY = "openclaw-yard.controls-visible";
 const CONTROLS_TAB_SESSION_KEY = "openclaw-yard.controls-tab";
@@ -29,8 +34,6 @@ type YardControlPanelProps = {
   onRemoveObject: (id: string) => void;
   resetYardTitle?: string;
   isResetYardDisabled?: boolean;
-  placementHint: string | null;
-  hoverCanPlace: boolean | null;
   cameraSettings: CameraSettings;
   onCameraSettingsChange: (settings: CameraSettings) => void;
   animationSettings: AnimationSettings;
@@ -44,7 +47,7 @@ type YardControlPanelProps = {
 
 function readPanelVisibleFromSession(): boolean {
   if (typeof window === "undefined") {
-    return true;
+    return false;
   }
   try {
     const stored = sessionStorage.getItem(PANEL_VISIBLE_SESSION_KEY);
@@ -55,9 +58,9 @@ function readPanelVisibleFromSession(): boolean {
       return true;
     }
   } catch {
-    return true;
+    return false;
   }
-  return true;
+  return false;
 }
 
 function writePanelVisibleToSession(isVisible: boolean): void {
@@ -161,9 +164,28 @@ function PanelIcon() {
   );
 }
 
-function ResetYardButton({
+function ResetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M4 4v4h4M16 16v-4h-4M5.5 5.5A6.5 6.5 0 0 1 14 6.5M14.5 14.5A6.5 6.5 0 0 1 6 13.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function ResetYardButton({
   onResetYard,
-  title,
+  title = "Reset yard",
   isDisabled = false,
 }: {
   onResetYard: () => void;
@@ -176,9 +198,10 @@ function ResetYardButton({
       onClick={onResetYard}
       disabled={isDisabled}
       title={title}
-      className="pointer-events-auto shrink-0 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-sm text-zinc-300 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:bg-black/70"
+      aria-label={title}
+      className={yardChromeIconButtonClass}
     >
-      Reset yard
+      <ResetIcon />
     </button>
   );
 }
@@ -237,7 +260,50 @@ const TAB_LABELS: Record<YardTabId, string> = {
   stream: "Stream",
 };
 
-export function YardControlPanel({
+type YardControlPanelTriggerProps = {
+  isOpen: boolean;
+  onToggle: () => void;
+  objectCount: number;
+  panelId: string;
+};
+
+export function YardControlPanelTrigger({
+  isOpen,
+  onToggle,
+  objectCount,
+  panelId,
+}: YardControlPanelTriggerProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
+      aria-controls={panelId}
+      aria-label={isOpen ? "Hide yard controls" : "Show yard controls"}
+      title="Controls"
+      className={`${yardChromeIconButtonClass} ${
+        isOpen ? yardChromeIconButtonActiveClass : ""
+      }`}
+    >
+      <PanelIcon />
+      {objectCount > 0 ? (
+        <span
+          className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-amber-200/90 text-[8px] font-semibold text-zinc-900"
+          aria-hidden="true"
+        >
+          {objectCount > 9 ? "9+" : objectCount}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+type YardControlPanelSurfaceProps = YardControlPanelProps & {
+  panelId: string;
+  onClose: () => void;
+};
+
+export function YardControlPanelSurface({
   objects,
   selectedId,
   isSandboxMode,
@@ -247,8 +313,6 @@ export function YardControlPanel({
   onRemoveObject,
   resetYardTitle,
   isResetYardDisabled = false,
-  placementHint,
-  hoverCanPlace,
   cameraSettings,
   onCameraSettingsChange,
   animationSettings,
@@ -258,83 +322,36 @@ export function YardControlPanel({
   onStreamToggle,
   isStreamLive,
   streamFetchError,
-}: YardControlPanelProps) {
-  const panelId = useId();
-  const [isPanelVisible, setIsPanelVisible] = useState(() =>
-    readPanelVisibleFromSession(),
-  );
+  panelId,
+  onClose,
+}: YardControlPanelSurfaceProps) {
   const [activeTab, setActiveTab] = useState<YardTabId>(() =>
     readControlsTabFromSession(),
   );
 
-  const togglePanelVisible = useCallback(() => {
-    setIsPanelVisible((visible) => {
-      const nextVisible = !visible;
-      writePanelVisibleToSession(nextVisible);
-      return nextVisible;
-    });
-  }, []);
-
-  if (!isPanelVisible) {
-    return (
-      <div className="flex items-start gap-2">
-        <ResetYardButton
-          onResetYard={onResetYard}
-          title={resetYardTitle}
-          isDisabled={isResetYardDisabled}
-        />
+  return (
+    <div
+      id={panelId}
+      className={yardChromeDockedPanelClass}
+    >
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/70">
+            Yard
+          </p>
+          <h2 className="text-sm font-medium text-zinc-100">Control panel</h2>
+        </div>
         <button
           type="button"
-          onClick={togglePanelVisible}
-          aria-expanded={false}
+          onClick={onClose}
+          aria-expanded={true}
           aria-controls={panelId}
-          aria-label="Show yard controls"
-          className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
+          aria-label="Hide yard controls"
+          className="flex size-8 items-center justify-center rounded-md border border-white/10 text-zinc-400 transition hover:border-white/20 hover:bg-white/5 hover:text-zinc-200"
         >
-          <PanelIcon />
-          <span>Controls</span>
-          {objects.length > 0 ? (
-            <span
-              className="rounded-full bg-amber-200/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-100"
-              aria-label={`${objects.length} placed in yard`}
-            >
-              {objects.length}
-            </span>
-          ) : null}
+          <ChevronIcon direction="left" />
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-start gap-2">
-      <ResetYardButton
-        onResetYard={onResetYard}
-        title={resetYardTitle}
-        isDisabled={isResetYardDisabled}
-      />
-      <div
-        id={panelId}
-        className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl"
-      >
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/70">
-              Yard
-            </p>
-            <h2 className="text-sm font-medium text-zinc-100">Control panel</h2>
-          </div>
-          <button
-            type="button"
-            onClick={togglePanelVisible}
-            aria-expanded={true}
-            aria-controls={panelId}
-            aria-label="Hide yard controls"
-            className="flex size-8 items-center justify-center rounded-md border border-white/10 text-zinc-400 transition hover:border-white/20 hover:bg-white/5 hover:text-zinc-200"
-          >
-            <ChevronIcon direction="left" />
-          </button>
-        </header>
+      </header>
 
         <div
           role="tablist"
@@ -455,6 +472,15 @@ export function YardControlPanel({
                 defaultOpen={false}
               >
                 <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={onResetYard}
+                    disabled={isResetYardDisabled}
+                    title={resetYardTitle}
+                    className="rounded-md border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-white/20 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Reset yard
+                  </button>
                   <Link
                     href="/library"
                     className="inline-flex rounded-md border border-white/10 px-3 py-2 text-center text-sm text-zinc-300 transition hover:bg-white/5"
@@ -479,7 +505,6 @@ export function YardControlPanel({
                 <CameraSettingsFields
                   settings={cameraSettings}
                   onChange={onCameraSettingsChange}
-                  placementHint={placementHint}
                   idPrefix="yard-camera"
                 />
               </AccordionSection>
@@ -555,7 +580,39 @@ export function YardControlPanel({
             </div>
           ) : null}
         </div>
-      </div>
     </div>
+  );
+}
+
+export function YardControlPanel(props: YardControlPanelProps) {
+  const panelId = useId();
+  const [isPanelVisible, setIsPanelVisible] = useState(() =>
+    readPanelVisibleFromSession(),
+  );
+
+  const togglePanelVisible = useCallback(() => {
+    setIsPanelVisible((visible) => {
+      const nextVisible = !visible;
+      writePanelVisibleToSession(nextVisible);
+      return nextVisible;
+    });
+  }, []);
+
+  return (
+    <>
+      <YardControlPanelTrigger
+        isOpen={isPanelVisible}
+        onToggle={togglePanelVisible}
+        objectCount={props.objects.length}
+        panelId={panelId}
+      />
+      {isPanelVisible ? (
+        <YardControlPanelSurface
+          {...props}
+          panelId={panelId}
+          onClose={togglePanelVisible}
+        />
+      ) : null}
+    </>
   );
 }

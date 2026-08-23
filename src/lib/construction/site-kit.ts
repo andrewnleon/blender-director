@@ -11,14 +11,17 @@ import {
 import type { CatalogFootprint } from "../catalog-types";
 import type { ConstructClock } from "./types";
 
-/** Matches `build_skyscraper.py` SITE_HALF * 2, FOOTPRINT, HEIGHT. */
-export const SKYSCRAPER_SITE_AUTHORING = {
+/** Reference site + cage dimensions for construct scaling. */
+export const SITE_KIT_AUTHORING = {
   siteWidth: 9.92,
   siteDepth: 9.92,
   cageWidth: 6,
   cageDepth: 6,
   cageHeight: 18,
 } as const;
+
+/** @deprecated Prefer SITE_KIT_AUTHORING — kept for skyscraper site-kit source. */
+export const SKYSCRAPER_SITE_AUTHORING = SITE_KIT_AUTHORING;
 
 export const SKYSCRAPER_CATALOG_ID = "skyscraper";
 
@@ -45,10 +48,7 @@ const MIN_TARGET_PLAN = 0.5;
 const MIN_TARGET_HEIGHT = 1.5;
 const BIND_COLLAPSE = 0.0001;
 
-/**
- * Hero construct windows (`animate_skyscraper.py`, END≈968):
- * site prep → foundation → per-floor frame → park/complete hides overlay.
- */
+/** Construct windows: site prep → foundation → per-floor frame → complete. */
 export const SITE_KIT_REVEAL = {
   siteStart: 0.02,
   subgradeStart: 0.08,
@@ -124,9 +124,9 @@ export function computeSiteKitScale(input: {
   const depth = Math.max(input.targetDepth, MIN_TARGET_PLAN);
   const height = Math.max(input.targetHeight, MIN_TARGET_HEIGHT);
   return {
-    x: width / SKYSCRAPER_SITE_AUTHORING.siteWidth,
-    y: height / SKYSCRAPER_SITE_AUTHORING.cageHeight,
-    z: depth / SKYSCRAPER_SITE_AUTHORING.siteDepth,
+    x: width / SITE_KIT_AUTHORING.siteWidth,
+    y: height / SITE_KIT_AUTHORING.cageHeight,
+    z: depth / SITE_KIT_AUTHORING.siteDepth,
   };
 }
 
@@ -179,9 +179,9 @@ export function measureAuthoredBounds(root: Object3D): AuthoredBounds {
 
   if (!hasBounds || union.isEmpty()) {
     return {
-      width: SKYSCRAPER_SITE_AUTHORING.siteWidth,
-      depth: SKYSCRAPER_SITE_AUTHORING.siteDepth,
-      height: SKYSCRAPER_SITE_AUTHORING.cageHeight,
+      width: SITE_KIT_AUTHORING.siteWidth,
+      depth: SITE_KIT_AUTHORING.siteDepth,
+      height: SITE_KIT_AUTHORING.cageHeight,
     };
   }
 
@@ -288,7 +288,7 @@ export function writeConstructClock(
   clock.isPlaying = isPlaying;
 }
 
-/** Clone skyscraper site + RC cage at authored size (bind pose is collapsed). */
+/** Clone site + cage meshes at authored size (bind pose is collapsed). */
 export function extractSiteKit(sourceRoot: Object3D): Group {
   const group = new Group();
   group.name = "ST_SiteKitInstance";

@@ -11,7 +11,7 @@ from construction_crane import CraneConfig, build_tower_crane
 
 PREFIX = "OC_"
 PAD_Z = 0.32
-# Yard lots are 10×10 m (±5 m). Site mesh inset like skyscraper — fence outer face inside yellow line.
+# Yard lots are 10×10 m (±5 m). Site mesh inset — fence outer face inside yellow line.
 SITE_HALF = 4.96
 FENCE_THICK = 0.08
 PAD_HALF = SITE_HALF - FENCE_THICK

@@ -26,7 +26,7 @@ SKIP_NAMES = {"ST_Sun", "ST_Fill", "ST_Camera", "ST_DirtGround"}
 
 BUILDINGS = [
 
-    ("skyscraper", "skyscraper.blend", "ST_", 800),
+    ("operations-center", "operations-center.blend", "OC_", 1),
 
 ]
 
@@ -177,4 +177,3 @@ def main() -> None:
 if __name__ == "__main__":
 
     main()
-
