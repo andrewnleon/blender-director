@@ -22,6 +22,15 @@ UV_SCALE = 0.42
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
+MATERIAL_PREFIXES = ("ST_", "OC_", "MAT_", "CC_", "CX_")
+
+# Safety yellow / enamel black live in the albedo so glTF export
+# (which drops Mix tint and ships baseColorFactor 0.8) still reads paint, not rock.
+PAINT_ALBEDO_TINT: dict[str, tuple[float, float, float]] = {
+    "paint_yellow": (0.98, 0.82, 0.08),
+    "paint_black": (0.10, 0.10, 0.11),
+}
+
 SURFACE_BY_SUFFIX: dict[str, str] = {
     "Concrete": "concrete",
     "SlabGround": "concrete",
@@ -167,6 +176,9 @@ def _surface_maps(kind: str) -> dict[str, object]:
     roughness = np.clip(rough_base + (height - 0.5) * 0.22, 0.04, 0.98)
     normal = _height_to_normal(height, 3.2 if kind != "glass" else 1.1)
     albedo_rgb = np.stack([albedo, albedo, albedo], axis=-1)
+    paint_tint = PAINT_ALBEDO_TINT.get(kind)
+    if paint_tint is not None:
+        albedo_rgb = np.clip(albedo_rgb * paint_tint, 0.0, 1.0)
     return {"albedo": albedo_rgb, "roughness": roughness, "normal": normal}
 
 
@@ -305,17 +317,28 @@ def apply_surface_to_material(mat, kind: str, library: dict[str, dict[str, objec
     bsdf.location = (420, 0)
 
     albedo = _tex_node(nodes, maps["albedo"], (-220, 180))
-    tint = nodes.new("ShaderNodeRGB")
-    tint.location = (-220, 420)
-    tint.outputs[0].default_value = values["tint"]
-    mix = nodes.new("ShaderNodeMix")
-    mix.location = (80, 220)
-    mix.data_type = "RGBA"
-    mix.blend_type = "MULTIPLY"
-    mix.inputs["Factor"].default_value = 1.0
-    links.new(albedo.outputs["Color"], mix.inputs["A"])
-    links.new(tint.outputs["Color"], mix.inputs["B"])
-    links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+    if kind in PAINT_ALBEDO_TINT:
+        # Color is baked into the map. A Mix tint is dropped by glTF and
+        # left gray cranes looking like concrete.
+        links.new(albedo.outputs["Color"], bsdf.inputs["Base Color"])
+        viewport_tint = values["tint"]
+        if kind == "paint_yellow" and _is_neutral_tint(viewport_tint):
+            viewport_tint = (*PAINT_ALBEDO_TINT["paint_yellow"], 1.0)
+        elif kind == "paint_black" and _is_neutral_tint(viewport_tint):
+            viewport_tint = (*PAINT_ALBEDO_TINT["paint_black"], 1.0)
+        values["tint"] = viewport_tint
+    else:
+        tint = nodes.new("ShaderNodeRGB")
+        tint.location = (-220, 420)
+        tint.outputs[0].default_value = values["tint"]
+        mix = nodes.new("ShaderNodeMix")
+        mix.location = (80, 220)
+        mix.data_type = "RGBA"
+        mix.blend_type = "MULTIPLY"
+        mix.inputs["Factor"].default_value = 1.0
+        links.new(albedo.outputs["Color"], mix.inputs["A"])
+        links.new(tint.outputs["Color"], mix.inputs["B"])
+        links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
 
     rough = _tex_node(nodes, maps["roughness"], (-220, -80))
     rough_mix = nodes.new("ShaderNodeMath")
@@ -346,8 +369,21 @@ def apply_surface_to_material(mat, kind: str, library: dict[str, dict[str, objec
     mat.diffuse_color = values["tint"]
 
 
+def _is_neutral_tint(tint: tuple) -> bool:
+    if len(tint) < 3:
+        return True
+    red, green, blue = float(tint[0]), float(tint[1]), float(tint[2])
+    span = max(red, green, blue) - min(red, green, blue)
+    return span < 0.08
+
+
 def surface_for_material(name: str) -> str | None:
-    for prefix in ("ST_", "OC_", "MAT_"):
+    lowered = name.lower()
+    if "constryellow" in lowered:
+        return "paint_yellow"
+    if "constrblack" in lowered:
+        return "paint_black"
+    for prefix in MATERIAL_PREFIXES:
         if name.startswith(prefix):
             suffix = name[len(prefix) :]
             return SURFACE_BY_SUFFIX.get(suffix)

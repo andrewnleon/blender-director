@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { OpenClawEvent } from "@/types/openclaw-event";
 import { canPlaceAt } from "@/lib/placement-collision";
 import { useAgentStream } from "@/hooks/use-agent-stream";
 import { useAgentYard } from "@/hooks/use-agent-yard";
+import { useDynamicScene } from "@/hooks/use-dynamic-scene";
+import { useLibraryExclusions } from "@/hooks/use-library-exclusions";
+import { DynamicSceneButton } from "@/components/dynamic-scene-button";
 import { StageCanvas } from "@/components/stage-canvas";
+import {
+  StageCameraPoseReadout,
+  StageCompass,
+} from "@/components/stage-compass";
 import { YardControlPanel } from "@/components/yard-control-panel";
 import { YardPalettePanel } from "@/components/yard-palette-panel";
 import {
@@ -17,7 +24,12 @@ import {
   DEFAULT_ANIMATION_SETTINGS,
   type AnimationSettings,
 } from "@/lib/animation-settings";
-import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
+import {
+  DEFAULT_CAMERA_SETTINGS,
+  type CameraSettings,
+  type StageCameraPose,
+} from "@/lib/camera-settings";
+import { SHARED_STAGE_EXTENT } from "@/lib/stage-world";
 
 const SANDBOX_MODE_SESSION_KEY = "openclaw-yard.sandbox-mode";
 
@@ -59,6 +71,10 @@ export function OpenClawYard() {
     readSandboxModeFromSession(),
   );
   const [lastStreamEvent, setLastStreamEvent] = useState<OpenClawEvent | null>(null);
+  const { excludedIds } = useLibraryExclusions();
+  const { isDynamicScene, toggleDynamicScene, sceneVariant, selectSceneVariant } =
+    useDynamicScene();
+  const [cameraPose, setCameraPose] = useState<StageCameraPose | null>(null);
   const agentStream = useAgentStream({ onEvent: setLastStreamEvent });
   const agentYard = useAgentYard({
     streamEnabled: agentStream.isEnabled,
@@ -98,17 +114,50 @@ export function OpenClawYard() {
     setSelectedId(id);
   }, []);
 
+  useEffect(() => {
+    if (placeCatalogId && excludedIds.includes(placeCatalogId)) {
+      setPlaceCatalogId(null);
+    }
+  }, [excludedIds, placeCatalogId]);
+
   function handleReset() {
     setObjects([]);
     setSelectedId(null);
     setPlaceCatalogId("skyscraper");
   }
 
-  function handleRemoveSelected() {
-    if (!selectedId) return;
-    setObjects((prev) => prev.filter((object) => object.id !== selectedId));
-    setSelectedId(null);
-  }
+  const handleRemoveObject = useCallback((objectId: string) => {
+    setObjects((prev) => prev.filter((object) => object.id !== objectId));
+    setSelectedId((currentId) => (currentId === objectId ? null : currentId));
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName;
+        if (
+          tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          tagName === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      if (!selectedId) {
+        return;
+      }
+      event.preventDefault();
+      handleRemoveObject(selectedId);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleRemoveObject, selectedId]);
 
   const placing =
     placeCatalogId && canPlaceCatalogItem(placeCatalogId, objects, isSandboxMode)
@@ -136,6 +185,10 @@ export function OpenClawYard() {
         onPlace={handlePlace}
         onSelect={handleSelect}
         onPlacementHoverChange={setHoverCanPlace}
+        isDynamicScene={isDynamicScene}
+        sceneVariant={sceneVariant}
+        groundExtent={SHARED_STAGE_EXTENT}
+        onCameraPoseChange={setCameraPose}
       />
 
       <header className="pointer-events-none absolute top-0 left-0 p-4">
@@ -147,6 +200,12 @@ export function OpenClawYard() {
       </header>
 
       <div className="pointer-events-none absolute top-4 right-4 z-20 flex items-start gap-2">
+        <DynamicSceneButton
+          isEnabled={isDynamicScene}
+          onToggle={toggleDynamicScene}
+          variant={sceneVariant}
+          onVariantChange={selectSceneVariant}
+        />
         <YardControlPanel
           objects={objects}
           selectedId={selectedId}
@@ -154,7 +213,7 @@ export function OpenClawYard() {
           onToggleSandboxMode={toggleSandboxMode}
           onSelectObject={setSelectedId}
           onResetYard={handleReset}
-          onRemoveSelected={handleRemoveSelected}
+          onRemoveObject={handleRemoveObject}
           placementHint={placementHint}
           hoverCanPlace={hoverCanPlace}
           cameraSettings={cameraSettings}
@@ -167,14 +226,19 @@ export function OpenClawYard() {
           isStreamLive={agentYard.isLive}
           streamFetchError={agentYard.fetchError}
         />
-        <YardPalettePanel
-          objects={objects}
-          placeCatalogId={placeCatalogId}
-          isSandboxMode={isSandboxMode}
-          onPlaceCatalogIdChange={setPlaceCatalogId}
-          placementHint={placementHint}
-          hoverCanPlace={hoverCanPlace}
-        />
+        <div className="flex flex-col items-end gap-2">
+          <YardPalettePanel
+            objects={objects}
+            placeCatalogId={placeCatalogId}
+            isSandboxMode={isSandboxMode}
+            onPlaceCatalogIdChange={setPlaceCatalogId}
+            placementHint={placementHint}
+            hoverCanPlace={hoverCanPlace}
+            excludedCatalogIds={excludedIds}
+          />
+          <StageCompass headingDegrees={cameraPose?.headingDegrees ?? 0} />
+          <StageCameraPoseReadout pose={cameraPose} />
+        </div>
       </div>
     </div>
   );

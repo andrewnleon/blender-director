@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimationSettingsPanel } from "@/components/animation-settings-panel";
 import { AssetListPanel } from "@/components/asset-list-panel";
 import { CameraSettingsPanel } from "@/components/camera-settings-panel";
 import { ConstructReplayButton } from "@/components/construct-replay-button";
+import { DynamicSceneButton } from "@/components/dynamic-scene-button";
 import { StageCanvas } from "@/components/stage-canvas";
 import {
   DEFAULT_ANIMATION_SETTINGS,
@@ -13,15 +14,17 @@ import {
 } from "@/lib/animation-settings";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "@/lib/camera-settings";
 import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
+import { useDynamicScene } from "@/hooks/use-dynamic-scene";
+import { useLibraryExclusions } from "@/hooks/use-library-exclusions";
 import {
   buildLibraryPlacements,
   getLibraryBounds,
   getLibraryCatalogItems,
-  getLibraryGroundExtent,
   getLibraryViewDistance,
   LIBRARY_CELL_PADDING,
   LIBRARY_COLUMN_COUNT,
 } from "@/lib/library-layout";
+import { SHARED_STAGE_EXTENT } from "@/lib/stage-world";
 
 function countConstructCapable(placements: readonly PlacedObject[]): number {
   let total = 0;
@@ -35,13 +38,17 @@ function countConstructCapable(placements: readonly PlacedObject[]): number {
 }
 
 export function AssetLibrary() {
-  const libraryItems = useMemo(() => getLibraryCatalogItems(), []);
+  const { excludedIds, excludeCatalogId, saveError } = useLibraryExclusions();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const libraryItems = useMemo(
+    () => getLibraryCatalogItems(excludedIds),
+    [excludedIds],
+  );
   const placements = useMemo(
     () => buildLibraryPlacements(libraryItems),
     [libraryItems],
   );
   const bounds = useMemo(() => getLibraryBounds(placements), [placements]);
-  const groundExtent = useMemo(() => getLibraryGroundExtent(bounds), [bounds]);
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>(() => ({
     ...DEFAULT_CAMERA_SETTINGS,
     viewDistance: getLibraryViewDistance(bounds),
@@ -49,65 +56,134 @@ export function AssetLibrary() {
   const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
     DEFAULT_ANIMATION_SETTINGS,
   );
-  const [constructReplayId, setConstructReplayId] = useState(0);
   const [isConstructReplaying, setIsConstructReplaying] = useState(false);
-  const pendingReplayFinishesRef = useRef(0);
+  const { isDynamicScene, toggleDynamicScene, sceneVariant, selectSceneVariant } =
+    useDynamicScene();
   const constructCapableCount = useMemo(
     () => countConstructCapable(placements),
     [placements],
   );
 
   function handleConstructReplay() {
-    pendingReplayFinishesRef.current = constructCapableCount;
-    setConstructReplayId((replayId) => replayId + 1);
+    if (isConstructReplaying) {
+      setIsConstructReplaying(false);
+      return;
+    }
     setIsConstructReplaying(constructCapableCount > 0);
   }
 
-  function handleConstructReplayFinished() {
-    pendingReplayFinishesRef.current = Math.max(
-      0,
-      pendingReplayFinishesRef.current - 1,
-    );
-    if (pendingReplayFinishesRef.current === 0) {
-      setIsConstructReplaying(false);
+  const selectedPlacement = placements.find(
+    (placement) => placement.id === selectedId,
+  );
+  const selectedItem = selectedPlacement
+    ? getCatalogItem(selectedPlacement.catalogId)
+    : undefined;
+
+  const handleRemovePlacement = useCallback(
+    (placementId: string) => {
+      const placement = placements.find((entry) => entry.id === placementId);
+      if (!placement) {
+        return;
+      }
+      void excludeCatalogId(placement.catalogId);
+      setSelectedId((currentId) =>
+        currentId === placementId ? null : currentId,
+      );
+    },
+    [excludeCatalogId, placements],
+  );
+
+  useEffect(() => {
+    setCameraSettings((currentSettings) => ({
+      ...currentSettings,
+      viewDistance: getLibraryViewDistance(bounds),
+    }));
+  }, [bounds]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName;
+        if (
+          tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          tagName === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      if (!selectedId) {
+        return;
+      }
+      event.preventDefault();
+      handleRemovePlacement(selectedId);
     }
-  }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleRemovePlacement, selectedId]);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#1b1e1c] text-zinc-100">
       <StageCanvas
         objects={placements}
-        selectedId={null}
+        selectedId={selectedId}
         placeCatalogId={null}
         cameraSettings={cameraSettings}
         animationSettings={animationSettings}
         onPlace={() => {}}
-        onSelect={() => {}}
-        readOnly
+        onSelect={setSelectedId}
         staticPreview
         cameraTarget={bounds.center}
-        groundExtent={groundExtent}
-        constructReplayId={constructReplayId}
-        onConstructReplayFinished={handleConstructReplayFinished}
+        groundExtent={SHARED_STAGE_EXTENT}
+        isConstructReplaying={isConstructReplaying}
+        isDynamicScene={isDynamicScene}
+        sceneVariant={sceneVariant}
       />
 
       <header className="pointer-events-none absolute top-0 left-0 right-0 flex items-start justify-between gap-4 p-4">
-        <Link
-          href="/"
-          className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs text-zinc-200 backdrop-blur-md transition hover:border-white/20 hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
-        >
-          Back to yard
-        </Link>
+        <div className="flex flex-col items-start gap-2">
+          <Link
+            href="/"
+            className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-xs text-zinc-200 backdrop-blur-md transition hover:border-white/20 hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+          >
+            Back to yard
+          </Link>
+          <p className="pointer-events-none max-w-xs rounded-lg border border-white/10 bg-black/55 px-3 py-2 text-[11px] text-zinc-400 backdrop-blur-md">
+            Click a building to select it, then remove it from the project.
+          </p>
+          {selectedPlacement ? (
+            <button
+              type="button"
+              onClick={() => handleRemovePlacement(selectedPlacement.id)}
+              className="pointer-events-auto inline-flex min-h-9 items-center rounded-lg border border-rose-300/40 bg-rose-950/50 px-3 py-2 text-xs text-rose-100 backdrop-blur-md transition hover:border-rose-200/70 hover:bg-rose-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+            >
+              Remove {selectedItem?.label ?? selectedPlacement.catalogId} from
+              project
+            </button>
+          ) : null}
+          {saveError ? (
+            <p className="pointer-events-none max-w-xs text-[11px] text-amber-200/90">
+              {saveError}
+            </p>
+          ) : null}
+        </div>
         <div className="flex items-start gap-2">
           <AnimationSettingsPanel
             settings={animationSettings}
             onChange={setAnimationSettings}
           />
-          <ConstructReplayButton
-            isPlaying={isConstructReplaying}
-            onReplay={handleConstructReplay}
+          <DynamicSceneButton
+            isEnabled={isDynamicScene}
+            onToggle={toggleDynamicScene}
+            variant={sceneVariant}
+            onVariantChange={selectSceneVariant}
           />
-          <AssetListPanel placements={placements} />
           <CameraSettingsPanel
             settings={cameraSettings}
             onChange={setCameraSettings}
@@ -115,6 +191,18 @@ export function AssetLibrary() {
           />
         </div>
       </header>
+      <div className="pointer-events-none absolute right-4 bottom-4 z-20 flex items-end gap-2">
+        <AssetListPanel
+          placements={placements}
+          selectedId={selectedId}
+          onSelectPlacement={setSelectedId}
+          onRemovePlacement={handleRemovePlacement}
+        />
+        <ConstructReplayButton
+          isPlaying={isConstructReplaying}
+          onReplay={handleConstructReplay}
+        />
+      </div>
     </div>
   );
 }

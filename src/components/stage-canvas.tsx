@@ -2,8 +2,6 @@
 
 import {
   Center,
-  Clone,
-  Environment,
   OrbitControls,
   useAnimations,
   useGLTF,
@@ -19,30 +17,72 @@ import {
 } from "react";
 import {
   ACESFilmicToneMapping,
+  FrontSide,
   LoopOnce,
+  LoopRepeat,
   MOUSE,
   Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Material,
   PropertyBinding,
+  Spherical,
   SRGBColorSpace,
   Vector3,
   type AnimationAction,
   type AnimationClip,
+  type AmbientLight,
+  type DirectionalLight,
   type Group,
+  type HemisphereLight,
   type Object3D,
 } from "three";
+import { LivingMountains } from "@/components/living-mountains";
+import { LivingTrees } from "@/components/living-trees";
+import { liveWorldSize, mountainRingRadii } from "@/lib/live-backdrop";
+import {
+  getLiveGroundLook,
+  LivingGroundApron,
+  LivingLand,
+} from "@/components/living-ground";
+import {
+  LIFE_CLIP_NAME,
+  LivingEnvironmentDriver,
+  LivingObjectEffects,
+  OccupancyGlow,
+} from "@/components/living-scene";
 import { YardGrid } from "@/components/yard-grid";
 import { DEFAULT_ANIMATION_SETTINGS, type AnimationSettings } from "@/lib/animation-settings";
 import {
+  DEFAULT_NORTH_AZIMUTH,
+  DEFAULT_NORTH_POLAR,
   getSceneFogDistances,
+  MAX_ORBIT_POLAR,
+  MIN_ORBIT_POLAR,
+  northFacingCameraPosition,
   PLACING_ROTATE_SPEED_RATIO,
+  YARD_SCENE_COLOR,
   type CameraSettings,
+  type StageCameraPose,
 } from "@/lib/camera-settings";
+import { useCatalogGlbPreload } from "@/hooks/use-catalog-glb-preload";
 import {
   getCatalogItem,
   type CatalogFootprint,
   type CatalogItem,
   type PlacedObject,
 } from "@/lib/catalog";
+import {
+  DEFAULT_SCENE_VARIANT,
+  type SceneVariant,
+} from "@/lib/scene-lighting";
+import {
+  SHARED_STAGE_EXTENT,
+  STAGE_CAMERA_FAR,
+  SUN_LIGHT_DISTANCE,
+  stageCompassDegrees,
+  worldGroundSize,
+} from "@/lib/stage-world";
 import {
   constructDriveModeForCatalog,
   EMPTY_CONSTRUCTION_STATE,
@@ -70,9 +110,12 @@ type StageCanvasProps = {
   groundExtent?: number;
   /** Live OpenClaw construction state keyed by catalog id. */
   constructionByCatalogId?: Record<string, ConstructionState>;
-  /** Increment to force a one-shot construct auto-play, even when driveMode is scrub. */
-  constructReplayId?: number;
-  onConstructReplayFinished?: () => void;
+  /** Library construct replay — loop construct clips while true. */
+  isConstructReplaying?: boolean;
+  /** Ambient life: lights, fog, windows, sway. */
+  isDynamicScene?: boolean;
+  sceneVariant?: SceneVariant;
+  onCameraPoseChange?: (pose: StageCameraPose) => void;
 };
 
 const GRID_STEP = 1;
@@ -80,7 +123,90 @@ const GRID_STEP = 1;
 const BUILDING_ZONE_SIZE = 10;
 const BIND_COLLAPSE = 0.0001;
 const GROW_IN_THRESHOLD = 0.15;
+const COMPLETE_HULL_NAME = /_complete$/i;
 const CAMERA_TARGET: [number, number, number] = [0, 0.75, 0];
+
+function disableMaterialFog(material: Material): void {
+  if ("fog" in material) {
+    Reflect.set(material, "fog", false);
+  }
+}
+
+function materialHasTransmission(material: Material): boolean {
+  return (
+    material instanceof MeshPhysicalMaterial && material.transmission > 0.01
+  );
+}
+
+function meshHasGlass(child: Mesh): boolean {
+  if (/window|glass/i.test(child.name)) {
+    return true;
+  }
+  const materials = Array.isArray(child.material)
+    ? child.material
+    : [child.material];
+  for (const material of materials) {
+    if (!(material instanceof Material)) {
+      continue;
+    }
+    if (/window|glass/i.test(material.name)) {
+      return true;
+    }
+    if (materialHasTransmission(material)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hardenAssetMaterial(material: Material): void {
+  disableMaterialFog(material);
+  if (!(material instanceof MeshStandardMaterial)) {
+    return;
+  }
+  // Keep authored side / alpha. Forcing FrontSide culls inverted wall
+  // planes (hollow towers, stacked floor plates, black backfaces).
+  // DoubleSide + self-shadow is the build-time flicker on floor plates.
+  material.shadowSide = FrontSide;
+  const materialName = material.name;
+  if (/window|glass/i.test(materialName) || materialHasTransmission(material)) {
+    material.metalness = Math.min(material.metalness, 0.15);
+    material.roughness = Math.max(material.roughness, 0.28);
+    if (materialHasTransmission(material)) {
+      material.depthWrite = false;
+    }
+  }
+}
+
+function ownMeshMaterials(child: Mesh): void {
+  if (Array.isArray(child.material)) {
+    child.material = child.material.map((material) =>
+      material instanceof Material ? material.clone() : material,
+    );
+    return;
+  }
+  if (child.material instanceof Material) {
+    child.material = child.material.clone();
+  }
+}
+
+function prepareAssetMesh(child: Object3D): void {
+  if (!(child instanceof Mesh)) {
+    return;
+  }
+  ownMeshMaterials(child);
+  const isGlass = meshHasGlass(child);
+  child.castShadow = !isGlass;
+  child.receiveShadow = !isGlass;
+  const materials = Array.isArray(child.material)
+    ? child.material
+    : [child.material];
+  for (const material of materials) {
+    if (material instanceof Material) {
+      hardenAssetMaterial(material);
+    }
+  }
+}
 
 type OrbitControlsLike = {
   target: Vector3;
@@ -107,12 +233,83 @@ function isOrbitControlsLike(controls: unknown): controls is OrbitControlsLike {
   );
 }
 
-function OrbitViewDistance({ viewDistance }: { viewDistance: number }) {
+function CameraPoseReporter({
+  cameraTarget,
+  onCameraPoseChange,
+}: {
+  cameraTarget: [number, number, number];
+  onCameraPoseChange: (pose: StageCameraPose) => void;
+}) {
+  const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
-  const lastApplied = useRef(viewDistance);
+  const lastKey = useRef("");
 
-  useEffect(() => {
+  useFrame(() => {
+    const target = isOrbitControlsLike(controls)
+      ? controls.target
+      : {
+          x: cameraTarget[0],
+          y: cameraTarget[1],
+          z: cameraTarget[2],
+        };
+    const offsetX = camera.position.x - target.x;
+    const offsetY = camera.position.y - target.y;
+    const offsetZ = camera.position.z - target.z;
+    const distance = Math.hypot(offsetX, offsetY, offsetZ);
+    const polar =
+      distance > 1e-6
+        ? Math.acos(Math.min(1, Math.max(-1, offsetY / distance)))
+        : 0;
+    const headingDegrees = stageCompassDegrees(offsetX, offsetZ);
+    const poseKey = [
+      camera.position.x.toFixed(2),
+      camera.position.y.toFixed(2),
+      camera.position.z.toFixed(2),
+      target.x.toFixed(2),
+      target.y.toFixed(2),
+      target.z.toFixed(2),
+      headingDegrees.toFixed(0),
+    ].join("|");
+    if (poseKey === lastKey.current) {
+      return;
+    }
+    lastKey.current = poseKey;
+    onCameraPoseChange({
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      target: [target.x, target.y, target.z],
+      distance,
+      polar,
+      headingDegrees,
+    });
+  });
+
+  return null;
+}
+
+function OrbitViewDistance({
+  cameraTarget,
+  viewDistance,
+}: {
+  cameraTarget: readonly [number, number, number];
+  viewDistance: number;
+}) {
+  const controls = useThree((state) => state.controls);
+  const lastApplied = useRef(Number.NaN);
+  const didApplyMountPose = useRef(false);
+
+  useLayoutEffect(() => {
     if (!isOrbitControlsLike(controls)) {
+      return;
+    }
+    if (!didApplyMountPose.current) {
+      const offset = new Vector3().setFromSpherical(
+        new Spherical(viewDistance, DEFAULT_NORTH_POLAR, DEFAULT_NORTH_AZIMUTH),
+      );
+      controls.target.set(cameraTarget[0], cameraTarget[1], cameraTarget[2]);
+      controls.object.position.copy(controls.target).add(offset);
+      controls.update();
+      didApplyMountPose.current = true;
+      lastApplied.current = viewDistance;
       return;
     }
     if (Math.abs(lastApplied.current - viewDistance) < 0.01) {
@@ -126,7 +323,7 @@ function OrbitViewDistance({ viewDistance }: { viewDistance: number }) {
     controls.object.position.copy(controls.target).add(offset);
     controls.update();
     lastApplied.current = viewDistance;
-  }, [controls, viewDistance]);
+  }, [cameraTarget, controls, viewDistance]);
 
   return null;
 }
@@ -205,30 +402,72 @@ function getFootprintCellCenters(
   return cells;
 }
 
-function SceneEnvironment({ groundExtent }: { groundExtent: number }) {
-  const shadowHalf = Math.max(36, groundExtent * 0.55);
-  const shadowFar = Math.max(96, groundExtent * 1.35 + 48);
+function SceneEnvironment({
+  groundExtent,
+  isDynamicScene,
+  sceneVariant,
+  fogNear,
+  fogFar,
+}: {
+  groundExtent: number;
+  isDynamicScene: boolean;
+  sceneVariant: SceneVariant;
+  fogNear: number;
+  fogFar: number;
+}) {
+  // Local lights only. drei <Environment preset> suspends the whole Canvas
+  // on a raw.githack.com HDR that 403s and leaves a white viewport.
+  const shadowReach = isDynamicScene
+    ? mountainRingRadii(groundExtent).outer + 24
+    : Math.max(48, groundExtent * 0.7);
+  const shadowHalf = shadowReach;
+  const shadowFar = Math.max(
+    220,
+    SUN_LIGHT_DISTANCE + (isDynamicScene ? shadowReach * 1.4 : groundExtent * 1.1),
+  );
   const shadowMapSize = groundExtent > 80 ? 4096 : 2048;
+  const sunRef = useRef<DirectionalLight>(null);
+  const fillRef = useRef<DirectionalLight>(null);
+  const hemiRef = useRef<HemisphereLight>(null);
+  const ambientRef = useRef<AmbientLight>(null);
 
   return (
     <>
-      <hemisphereLight args={["#d8e4f0", "#3a3530", 0.62]} />
-      <ambientLight intensity={0.22} />
-      <Environment preset="city" background={false} environmentIntensity={0.82} />
+      <hemisphereLight ref={hemiRef} args={["#d8e4f0", "#3a3530", 0.32]} />
+      <ambientLight ref={ambientRef} intensity={0.1} color="#eef1f4" />
       <directionalLight
+        ref={sunRef}
         castShadow
-        position={[22, 34, 14]}
-        intensity={1.55}
+        position={[28, 42, 18]}
+        intensity={1.65}
+        color="#fff1dc"
         shadow-mapSize={[shadowMapSize, shadowMapSize]}
-        shadow-bias={-0.00012}
-        shadow-normalBias={0.02}
+        shadow-bias={-0.00018}
+        shadow-normalBias={0.04}
+        shadow-camera-near={4}
         shadow-camera-far={shadowFar}
         shadow-camera-left={-shadowHalf}
         shadow-camera-right={shadowHalf}
         shadow-camera-top={shadowHalf}
         shadow-camera-bottom={-shadowHalf}
       />
-      <directionalLight position={[-14, 18, -10]} intensity={0.42} />
+      <directionalLight
+        ref={fillRef}
+        position={[-14, 18, -10]}
+        intensity={0.28}
+        color="#dce6f2"
+      />
+      <LivingEnvironmentDriver
+        enabled={isDynamicScene}
+        variant={sceneVariant}
+        sunRef={sunRef}
+        fillRef={fillRef}
+        hemiRef={hemiRef}
+        ambientRef={ambientRef}
+        baseFogNear={fogNear}
+        baseFogFar={fogFar}
+        groundExtent={groundExtent}
+      />
     </>
   );
 }
@@ -298,6 +537,8 @@ function Ground({
   onPlace,
   onPlacementHoverChange,
   extent,
+  isDynamicScene,
+  sceneVariant,
 }: {
   placing: boolean;
   placeCatalogId: string | null;
@@ -307,7 +548,13 @@ function Ground({
   onPlace: (position: [number, number, number]) => void;
   onPlacementHoverChange?: (canPlace: boolean | null) => void;
   extent: number;
+  isDynamicScene: boolean;
+  sceneVariant: SceneVariant;
 }) {
+  const groundLook = getLiveGroundLook(isDynamicScene, sceneVariant);
+  const terrainSize = isDynamicScene
+    ? liveWorldSize(extent)
+    : worldGroundSize(extent);
   const [hoverCell, setHoverCell] = useState<[number, number, number] | null>(
     null,
   );
@@ -356,17 +603,63 @@ function Ground({
 
   return (
     <group>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.02, 0]}
-        receiveShadow
-        onPointerMove={handlePointerMove}
-        onPointerOut={handlePointerOut}
-        onClick={handleClick}
-      >
-        <planeGeometry args={[extent, extent]} />
-        <meshStandardMaterial color="#3f433c" roughness={0.95} metalness={0.05} />
-      </mesh>
+      {isDynamicScene ? (
+        <>
+          <Suspense fallback={null}>
+            <LivingLand
+              size={terrainSize}
+              look={groundLook}
+              variant={sceneVariant}
+              onPointerMove={handlePointerMove}
+              onPointerOut={handlePointerOut}
+              onClick={handleClick}
+            />
+            <LivingMountains
+              extent={extent}
+              look={groundLook}
+              variant={sceneVariant}
+            />
+            <LivingTrees extent={extent} variant={sceneVariant} />
+          </Suspense>
+        </>
+      ) : (
+        <>
+          <LivingGroundApron
+            key={groundLook.apronColor}
+            extent={extent}
+            look={groundLook}
+          />
+          <mesh
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, -0.045, 0]}
+            receiveShadow
+          >
+            <planeGeometry args={[terrainSize, terrainSize]} />
+            <meshStandardMaterial
+              color={groundLook.apronColor}
+              roughness={Math.min(1, groundLook.roughness + 0.04)}
+              metalness={groundLook.metalness}
+            />
+          </mesh>
+        </>
+      )}
+      {isDynamicScene ? null : (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -0.02, 0]}
+          receiveShadow
+          onPointerMove={handlePointerMove}
+          onPointerOut={handlePointerOut}
+          onClick={handleClick}
+        >
+          <planeGeometry args={[extent, extent]} />
+          <meshStandardMaterial
+            color={groundLook.color}
+            roughness={groundLook.roughness}
+            metalness={groundLook.metalness}
+          />
+        </mesh>
+      )}
       {placing && hoverCell && hoverCanPlace !== null
         ? hoverFootprintCells.map((position) => (
             <PlacementCell
@@ -377,17 +670,19 @@ function Ground({
             />
           ))
         : null}
-      <YardGrid
-        position={[0, 0.02, 0]}
-        args={[extent, extent]}
-        cellSize={GRID_STEP}
-        cellThickness={0.6}
-        cellColor="#5c6558"
-        sectionSize={BUILDING_ZONE_SIZE}
-        sectionThickness={1.15}
-        sectionColor="#8a9a6a"
-        fadeStrength={0}
-      />
+      {isDynamicScene ? null : (
+        <YardGrid
+          position={[0, 0.02, 0]}
+          args={[extent, extent]}
+          cellSize={GRID_STEP}
+          cellThickness={0.6}
+          cellColor={groundLook.cellColor}
+          sectionSize={BUILDING_ZONE_SIZE}
+          sectionThickness={1.15}
+          sectionColor={groundLook.sectionColor}
+          fadeStrength={0}
+        />
+      )}
       {placing && hoverCell ? (
         <YardGrid
           position={[hoverCell[0], 0.022, hoverCell[2]]}
@@ -428,11 +723,23 @@ function RelayBeacon({ accent }: { accent: string }) {
   );
 }
 
-function GlbModel({ url }: { url: string }) {
+function GlbModel({
+  url,
+  isDynamicScene,
+}: {
+  url: string;
+  isDynamicScene: boolean;
+}) {
   const { scene } = useGLTF(url);
+  const root = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse(prepareAssetMesh);
+    return clone;
+  }, [scene]);
   return (
     <Center top>
-      <Clone object={scene} castShadow receiveShadow />
+      <primitive object={root} />
+      <LivingObjectEffects enabled={isDynamicScene} root={root} />
     </Center>
   );
 }
@@ -482,12 +789,16 @@ function getDeferredGrowIns(clip: AnimationClip, root: Object3D): DeferredGrow[]
 
     // Hide while still collapsed. First tiny key is t≈0 — using that
     // made every floor/window speckle the sky as soon as the clip started.
+    // Intact *_complete hulls must wait for the last key so they do not
+    // fade in over live slices (LINEAR overlap = z-fight flicker).
     let growStart = times[lastIndex];
-    for (let index = 0; index < times.length; index += 1) {
-      const [x, y, z] = sampleScaleAt(values, index);
-      if (Math.min(x, y, z) >= GROW_IN_THRESHOLD) {
-        growStart = times[index];
-        break;
+    if (!COMPLETE_HULL_NAME.test(node.name)) {
+      for (let index = 0; index < times.length; index += 1) {
+        const [x, y, z] = sampleScaleAt(values, index);
+        if (Math.min(x, y, z) >= GROW_IN_THRESHOLD) {
+          growStart = times[index];
+          break;
+        }
       }
     }
 
@@ -511,41 +822,13 @@ function collapseUntilGrow(
       } else {
         object.visible = true;
       }
-    } else {
-      object.visible = true;
+      continue;
     }
+    const minScale = Math.min(object.scale.x, object.scale.y, object.scale.z);
+    // After grow: hide again when the clip collapses the piece (slices,
+    // crane) so scale-0 casters do not swim the shadow map.
+    object.visible = minScale >= GROW_IN_THRESHOLD;
   }
-}
-
-function AviationBeacon({ position }: { position: [number, number, number] }) {
-  const [lit, setLit] = useState(true);
-
-  useEffect(() => {
-    let litNow = true;
-    let timer = 0;
-    const tick = () => {
-      litNow = !litNow;
-      setLit(litNow);
-      timer = window.setTimeout(tick, litNow ? 160 : 980);
-    };
-    timer = window.setTimeout(tick, 160);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  return (
-    <group position={position}>
-      <mesh>
-        <sphereGeometry args={[0.12, 12, 12]} />
-        <meshStandardMaterial
-          color="#ff1a12"
-          emissive="#ff1a12"
-          emissiveIntensity={lit ? 8 : 0.15}
-          roughness={0.2}
-        />
-      </mesh>
-      <pointLight color="#ff1a12" intensity={lit ? 6 : 0.2} distance={10} />
-    </group>
-  );
 }
 
 function resolveConstructClips(
@@ -581,8 +864,8 @@ function AnimatedGlb({
   playbackSpeed,
   constructionProgress,
   driveMode = "auto",
-  constructReplayId = 0,
-  onReplayFinished,
+  isConstructReplaying = false,
+  isDynamicScene = false,
 }: {
   url: string;
   clip: string;
@@ -590,16 +873,13 @@ function AnimatedGlb({
   /** Scrub target 0–1 when driveMode is scrub. */
   constructionProgress?: number;
   driveMode?: "auto" | "scrub";
-  constructReplayId?: number;
-  onReplayFinished?: () => void;
+  isConstructReplaying?: boolean;
+  isDynamicScene?: boolean;
 }) {
   const isScrubMode = driveMode === "scrub";
-  const consumedReplayIdRef = useRef(0);
-  const onReplayFinishedRef = useRef(onReplayFinished);
-  onReplayFinishedRef.current = onReplayFinished;
-  const [replayEpoch, setReplayEpoch] = useState(0);
-  const isReplayPass = constructReplayId > consumedReplayIdRef.current;
-  const isEffectiveScrub = isScrubMode && !isReplayPass;
+  const constructionProgressRef = useRef(constructionProgress);
+  constructionProgressRef.current = constructionProgress;
+  const isEffectiveScrub = isScrubMode && !isConstructReplaying;
   const { scene, animations } = useGLTF(url);
   const [constructDone, setConstructDone] = useState(
     () => isEffectiveScrub && isConstructionComplete(constructionProgress ?? 0),
@@ -609,12 +889,7 @@ function AnimatedGlb({
   const deferredRef = useRef<DeferredGrow[]>([]);
   const root = useMemo(() => {
     const clone = scene.clone(true);
-    clone.traverse((child) => {
-      if (child instanceof Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
+    clone.traverse(prepareAssetMesh);
     return clone;
   }, [scene]);
   const { mixer, clips } = useAnimations(animations, root);
@@ -631,18 +906,6 @@ function AnimatedGlb({
     [clipsToPlay, root],
   );
   deferredRef.current = deferredGrowIns;
-  const beaconPosition = useMemo(() => {
-    const beacon =
-      root.getObjectByName("ST_Beacon") ??
-      root.getObjectByName("OC_Beacon") ??
-      root.getObjectByName("CC_Beacon");
-    if (!beacon) {
-      return null;
-    }
-    const world = new Vector3();
-    beacon.getWorldPosition(world);
-    return [world.x, world.y, world.z] as [number, number, number];
-  }, [root]);
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
@@ -651,11 +914,6 @@ function AnimatedGlb({
       if (wrap) {
         wrap.visible = true;
       }
-      if (isReplayPass) {
-        consumedReplayIdRef.current = constructReplayId;
-        onReplayFinishedRef.current?.();
-        setReplayEpoch((epoch) => epoch + 1);
-      }
       return;
     }
 
@@ -663,8 +921,13 @@ function AnimatedGlb({
     const actions = clipsToPlay.map((activeClip) => {
       const action = mixer.clipAction(activeClip);
       action.reset();
-      action.setLoop(LoopOnce, 1);
-      action.clampWhenFinished = true;
+      if (isConstructReplaying) {
+        action.setLoop(LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+      } else {
+        action.setLoop(LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
       action.time = 0;
       if (isEffectiveScrub) {
         action.paused = true;
@@ -682,13 +945,15 @@ function AnimatedGlb({
           : longest,
       );
       const targetTime =
-        (constructionProgress ?? 0) * leader.getClip().duration;
+        (constructionProgressRef.current ?? 0) * leader.getClip().duration;
       for (const action of actions) {
         action.time = Math.min(targetTime, action.getClip().duration);
       }
       mixer.update(0);
       collapseUntilGrow(deferredGrowIns, targetTime, hideBeforeGrow);
-      setConstructDone(isConstructionComplete(constructionProgress ?? 0));
+      setConstructDone(
+        isConstructionComplete(constructionProgressRef.current ?? 0),
+      );
     } else {
       setConstructDone(false);
       mixer.update(0);
@@ -700,7 +965,7 @@ function AnimatedGlb({
       wrap.visible = true;
     }
 
-    if (isEffectiveScrub) {
+    if (isEffectiveScrub || isConstructReplaying) {
       return () => {
         actionsRef.current = [];
         for (const action of actions) {
@@ -718,11 +983,6 @@ function AnimatedGlb({
         return;
       }
       setConstructDone(true);
-      if (isReplayPass) {
-        consumedReplayIdRef.current = constructReplayId;
-        onReplayFinishedRef.current?.();
-        setReplayEpoch((epoch) => epoch + 1);
-      }
     };
     mixer.addEventListener("finished", onFinished);
     return () => {
@@ -737,13 +997,10 @@ function AnimatedGlb({
     clipsToPlay,
     deferredGrowIns,
     isEffectiveScrub,
-    isReplayPass,
+    isConstructReplaying,
     isScrubMode,
     driveMode,
-    constructReplayId,
-    constructionProgress,
     playbackSpeed,
-    replayEpoch,
   ]);
 
   useEffect(() => {
@@ -766,6 +1023,31 @@ function AnimatedGlb({
     setConstructDone(isConstructionComplete(constructionProgress));
   }, [constructionProgress, isEffectiveScrub, mixer]);
 
+  useEffect(() => {
+    if (!isDynamicScene || !constructDone) {
+      return;
+    }
+    const lifeClips = clips.filter(
+      (lifeClip) => LIFE_CLIP_NAME.test(lifeClip.name) && lifeClip.name !== clip,
+    );
+    if (lifeClips.length === 0) {
+      return;
+    }
+    const lifeActions = lifeClips.map((lifeClip) => {
+      const action = mixer.clipAction(lifeClip);
+      action.reset();
+      action.setLoop(LoopRepeat, Infinity);
+      action.paused = false;
+      action.play();
+      return action;
+    });
+    return () => {
+      for (const action of lifeActions) {
+        action.stop();
+      }
+    };
+  }, [clip, clips, constructDone, isDynamicScene, mixer]);
+
   useFrame(() => {
     const actions = actionsRef.current;
     if (actions.length === 0) {
@@ -778,9 +1060,11 @@ function AnimatedGlb({
   return (
     <group ref={wrapRef} visible={false}>
       <primitive object={root} />
-      {constructDone && beaconPosition ? (
-        <AviationBeacon position={beaconPosition} />
-      ) : null}
+      <LivingObjectEffects
+        enabled={isDynamicScene && constructDone}
+        root={root}
+      />
+      <OccupancyGlow enabled={isDynamicScene && constructDone} root={root} />
     </group>
   );
 }
@@ -790,26 +1074,17 @@ function AssetPreview({
   staticPreview = false,
   playbackSpeed,
   constructionState,
-  constructReplayId = 0,
-  onReplayFinished,
+  isConstructReplaying = false,
+  isDynamicScene = false,
 }: {
   item: CatalogItem;
   staticPreview?: boolean;
   playbackSpeed: number;
   constructionState?: ConstructionState;
-  constructReplayId?: number;
-  onReplayFinished?: () => void;
+  isConstructReplaying?: boolean;
+  isDynamicScene?: boolean;
 }) {
-  const [activeReplayId, setActiveReplayId] = useState(0);
-
-  useLayoutEffect(() => {
-    if (constructReplayId > 0) {
-      setActiveReplayId(constructReplayId);
-    }
-  }, [constructReplayId]);
-
-  const isLibraryReplay =
-    staticPreview && activeReplayId > 0 && activeReplayId === constructReplayId;
+  const isLibraryReplay = staticPreview && isConstructReplaying;
 
   if (item.kind === "glb" && item.url) {
     if (item.clip) {
@@ -830,17 +1105,12 @@ function AssetPreview({
           constructionProgress={
             libraryPlayback ? libraryPlayback.progress : resolvedState.progress
           }
-          constructReplayId={constructReplayId}
-          onReplayFinished={() => {
-            if (staticPreview) {
-              setActiveReplayId(0);
-            }
-            onReplayFinished?.();
-          }}
+          isConstructReplaying={isConstructReplaying}
+          isDynamicScene={isDynamicScene}
         />
       );
     }
-    return <GlbModel url={item.url} />;
+    return <GlbModel url={item.url} isDynamicScene={isDynamicScene} />;
   }
   return <RelayBeacon accent={item.accent} />;
 }
@@ -853,8 +1123,8 @@ function PlacedAsset({
   selectable = true,
   playbackSpeed,
   constructionState,
-  constructReplayId = 0,
-  onReplayFinished,
+  isConstructReplaying = false,
+  isDynamicScene = false,
 }: {
   object: PlacedObject;
   selected: boolean;
@@ -863,8 +1133,8 @@ function PlacedAsset({
   selectable?: boolean;
   playbackSpeed: number;
   constructionState?: ConstructionState;
-  constructReplayId?: number;
-  onReplayFinished?: () => void;
+  isConstructReplaying?: boolean;
+  isDynamicScene?: boolean;
 }) {
   const item = getCatalogItem(object.catalogId);
   if (!item) return null;
@@ -897,8 +1167,8 @@ function PlacedAsset({
           staticPreview={staticPreview}
           playbackSpeed={playbackSpeed}
           constructionState={constructionState}
-          constructReplayId={constructReplayId}
-          onReplayFinished={onReplayFinished}
+          isConstructReplaying={isConstructReplaying}
+          isDynamicScene={isDynamicScene}
         />
       </Suspense>
       {selectable && selected ? (
@@ -911,8 +1181,8 @@ function PlacedAsset({
   );
 }
 
-useGLTF.preload("/models/skyscraper.glb?v=42");
-useGLTF.preload("/models/operations-center.glb?v=7");
+useGLTF.preload("/models/skyscraper.glb?v=44");
+useGLTF.preload("/models/operations-center.glb?v=9");
 
 export function StageCanvas({
   objects,
@@ -926,11 +1196,14 @@ export function StageCanvas({
   readOnly = false,
   staticPreview = false,
   cameraTarget = CAMERA_TARGET,
-  groundExtent = 80,
+  groundExtent = SHARED_STAGE_EXTENT,
   constructionByCatalogId = {},
-  constructReplayId = 0,
-  onConstructReplayFinished,
+  isConstructReplaying = false,
+  isDynamicScene = false,
+  sceneVariant = DEFAULT_SCENE_VARIANT,
+  onCameraPoseChange,
 }: StageCanvasProps) {
+  useCatalogGlbPreload(!readOnly ? placeCatalogId : null);
   const placingItem =
     !readOnly && placeCatalogId ? getCatalogItem(placeCatalogId) : null;
   const placing = placingItem !== null;
@@ -941,18 +1214,30 @@ export function StageCanvas({
     () => getSceneFogDistances(cameraSettings),
     [cameraSettings],
   );
+  const startCameraPosition = useMemo(
+    () =>
+      northFacingCameraPosition(cameraTarget, cameraSettings.viewDistance),
+    [cameraSettings.viewDistance, cameraTarget],
+  );
   return (
     <Canvas
       className={`absolute inset-0 ${placing ? "cursor-crosshair" : ""}`}
       shadows="percentage"
-      camera={{ position: [24, 18, 24], fov: 40, near: 0.1, far: 450 }}
+      camera={{
+        position: startCameraPosition,
+        fov: 40,
+        near: 0.1,
+        far: STAGE_CAMERA_FAR,
+      }}
       gl={{
         antialias: true,
-        toneMappingExposure: 1.05,
+        alpha: false,
+        toneMappingExposure: 0.72,
       }}
       onCreated={({ gl }) => {
         gl.outputColorSpace = SRGBColorSpace;
         gl.toneMapping = ACESFilmicToneMapping;
+        gl.setClearColor(YARD_SCENE_COLOR, 1);
       }}
       onPointerMissed={() => onSelect(null)}
       onContextMenu={(event) => {
@@ -963,12 +1248,18 @@ export function StageCanvas({
         onSelect(null);
       }}
     >
-      <color attach="background" args={["#1b1e1c"]} />
+      <color attach="background" args={[YARD_SCENE_COLOR]} />
       <fog
         attach="fog"
-        args={["#1b1e1c", fogDistances.near, fogDistances.far]}
+        args={[YARD_SCENE_COLOR, fogDistances.near, fogDistances.far]}
       />
-      <SceneEnvironment groundExtent={groundExtent} />
+      <SceneEnvironment
+        groundExtent={groundExtent}
+        isDynamicScene={isDynamicScene}
+        sceneVariant={sceneVariant}
+        fogNear={fogDistances.near}
+        fogFar={fogDistances.far}
+      />
       <Ground
         placing={placing}
         placeCatalogId={placeCatalogId}
@@ -978,6 +1269,8 @@ export function StageCanvas({
         onPlace={onPlace}
         onPlacementHoverChange={onPlacementHoverChange}
         extent={groundExtent}
+        isDynamicScene={isDynamicScene}
+        sceneVariant={sceneVariant}
       />
       {objects.map((object) => (
         <PlacedAsset
@@ -989,8 +1282,8 @@ export function StageCanvas({
           selectable={!readOnly}
           playbackSpeed={animationSettings.playbackSpeed}
           constructionState={constructionByCatalogId[object.catalogId]}
-          constructReplayId={constructReplayId}
-          onReplayFinished={onConstructReplayFinished}
+          isConstructReplaying={isConstructReplaying}
+          isDynamicScene={isDynamicScene}
         />
       ))}
       <OrbitControls
@@ -1003,14 +1296,23 @@ export function StageCanvas({
         panSpeed={cameraSettings.panSpeed}
         zoomSpeed={cameraSettings.zoomSpeed}
         screenSpacePanning={false}
-        minPolarAngle={0.28}
-        maxPolarAngle={Math.PI / 2.08}
+        minPolarAngle={MIN_ORBIT_POLAR}
+        maxPolarAngle={MAX_ORBIT_POLAR}
         minDistance={cameraSettings.minDistance}
         maxDistance={cameraSettings.maxDistance}
         target={cameraTarget}
         mouseButtons={placing ? ORBIT_MOUSE_PLACE : ORBIT_MOUSE_NAVIGATE}
       />
-      <OrbitViewDistance viewDistance={cameraSettings.viewDistance} />
+      <OrbitViewDistance
+        cameraTarget={cameraTarget}
+        viewDistance={cameraSettings.viewDistance}
+      />
+      {onCameraPoseChange ? (
+        <CameraPoseReporter
+          cameraTarget={cameraTarget}
+          onCameraPoseChange={onCameraPoseChange}
+        />
+      ) : null}
     </Canvas>
   );
 }

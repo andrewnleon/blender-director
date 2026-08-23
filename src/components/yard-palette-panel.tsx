@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
+import { preloadCatalogGlbById } from "@/hooks/use-catalog-glb-preload";
 import {
-  CATALOG,
   canPlaceCatalogItem,
   countPlaced,
+  getVisibleCatalogItems,
   type PlacedObject,
 } from "@/lib/catalog";
 
@@ -17,6 +18,7 @@ type YardPalettePanelProps = {
   onPlaceCatalogIdChange: (catalogId: string | null) => void;
   placementHint: string | null;
   hoverCanPlace: boolean | null;
+  excludedCatalogIds: readonly string[];
 };
 
 function readPanelVisibleFromSession(): boolean {
@@ -90,8 +92,13 @@ export function YardPalettePanel({
   onPlaceCatalogIdChange,
   placementHint,
   hoverCanPlace,
+  excludedCatalogIds,
 }: YardPalettePanelProps) {
   const panelId = useId();
+  const visibleCatalog = useMemo(
+    () => getVisibleCatalogItems(excludedCatalogIds),
+    [excludedCatalogIds],
+  );
   const [isPanelVisible, setIsPanelVisible] = useState(() =>
     readPanelVisibleFromSession(),
   );
@@ -173,12 +180,12 @@ export function YardPalettePanel({
         <p className="mb-2 text-xs font-medium text-zinc-200">
           Buildings
           <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
-            {CATALOG.length}
+            {visibleCatalog.length}
           </span>
         </p>
 
         <div className="grid grid-cols-2 gap-2">
-          {CATALOG.map((item) => {
+          {visibleCatalog.map((item) => {
             const active =
               placeCatalogId === item.id &&
               canPlaceCatalogItem(item.id, objects, isSandboxMode);
@@ -194,6 +201,8 @@ export function YardPalettePanel({
                 aria-disabled={isAtCap}
                 aria-pressed={active}
                 title={isAtCap ? `${item.label} already in yard` : undefined}
+                onMouseEnter={() => preloadCatalogGlbById(item.id)}
+                onFocus={() => preloadCatalogGlbById(item.id)}
                 onClick={() =>
                   onPlaceCatalogIdChange(
                     placeCatalogId === item.id ? null : item.id,

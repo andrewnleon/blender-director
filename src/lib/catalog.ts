@@ -11,6 +11,25 @@ export function getCatalogItem(catalogId: string) {
   return CATALOG.find((item) => item.id === catalogId);
 }
 
+/** GLB URL for drei `useGLTF` / `useGLTF.preload` — query string is the cache key. */
+export function getCatalogGlbUrl(catalogId: string): string | undefined {
+  const item = getCatalogItem(catalogId);
+  if (item?.kind !== "glb" || !item.url) {
+    return undefined;
+  }
+  return item.url;
+}
+
+export function getVisibleCatalogItems(
+  excludedIds: readonly string[] = [],
+): CatalogItem[] {
+  if (excludedIds.length === 0) {
+    return CATALOG;
+  }
+  const excludedCatalogIds = new Set(excludedIds);
+  return CATALOG.filter((item) => !excludedCatalogIds.has(item.id));
+}
+
 export function countPlaced(
   objects: readonly PlacedObject[],
   catalogId: string,

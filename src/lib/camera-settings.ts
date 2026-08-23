@@ -1,3 +1,8 @@
+import { SHARED_STAGE_EXTENT } from "@/lib/stage-world";
+
+/** Yard clear / fog / page chrome — keep in sync with `openclaw-yard` shell. */
+export const YARD_SCENE_COLOR = "#1b1e1c";
+
 export type CameraSettings = {
   viewDistance: number;
   rotateSpeed: number;
@@ -9,7 +14,7 @@ export type CameraSettings = {
 };
 
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
-  viewDistance: 52,
+  viewDistance: 120.647,
   rotateSpeed: 0.55,
   panSpeed: 0.45,
   zoomSpeed: 0.65,
@@ -17,6 +22,53 @@ export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   minDistance: 8,
   maxDistance: 180,
 };
+
+/** Polar from +Y. Default matches a captured north-facing yard pose. */
+export const MIN_ORBIT_POLAR = 0.28;
+export const DEFAULT_NORTH_POLAR = 1.3608;
+export const DEFAULT_NORTH_AZIMUTH = Math.atan2(0.585, 117.995);
+export const MAX_ORBIT_POLAR = Math.PI / 2.08;
+
+export type StageCameraPose = {
+  position: [number, number, number];
+  target: [number, number, number];
+  distance: number;
+  polar: number;
+  headingDegrees: number;
+};
+
+export function formatStageCameraPose(pose: StageCameraPose): string {
+  const [x, y, z] = pose.position;
+  const [tx, ty, tz] = pose.target;
+  return [
+    `pos ${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`,
+    `target ${tx.toFixed(3)} ${ty.toFixed(3)} ${tz.toFixed(3)}`,
+    `distance ${pose.distance.toFixed(3)}`,
+    `polar ${pose.polar.toFixed(4)}`,
+    `heading ${pose.headingDegrees.toFixed(1)}`,
+  ].join(" | ");
+}
+
+function formatAxisTriplet(values: readonly [number, number, number]): string {
+  return values.map((value) => value.toFixed(2)).join("  ");
+}
+
+export function formatStageCameraPoseShort(pose: StageCameraPose): string {
+  return formatAxisTriplet(pose.position);
+}
+
+export function northFacingCameraPosition(
+  target: readonly [number, number, number],
+  distance: number,
+): [number, number, number] {
+  const height = Math.cos(DEFAULT_NORTH_POLAR) * distance;
+  const horizon = Math.sin(DEFAULT_NORTH_POLAR) * distance;
+  return [
+    target[0] + Math.sin(DEFAULT_NORTH_AZIMUTH) * horizon,
+    target[1] + height,
+    target[2] + Math.cos(DEFAULT_NORTH_AZIMUTH) * horizon,
+  ];
+}
 
 /** Placement mode uses a slower rotate feel relative to the user's base rotate speed. */
 export const PLACING_ROTATE_SPEED_RATIO = 0.4 / 0.55;
@@ -51,8 +103,8 @@ export function getSceneFogDistances(settings: CameraSettings): {
 } {
   const zoomExtent = Math.max(settings.maxDistance, settings.viewDistance);
   return {
-    near: Math.max(24, settings.minDistance * 2.5),
-    far: zoomExtent + 96,
+    near: Math.max(140, settings.viewDistance * 2.2),
+    far: Math.max(settings.maxDistance * 1.6, SHARED_STAGE_EXTENT * 4.2),
   };
 }
 

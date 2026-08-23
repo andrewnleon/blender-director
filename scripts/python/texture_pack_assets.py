@@ -34,7 +34,7 @@ EXPORT_DIR = os.path.join(ROOT, "public", "models", "packs", "exported")
 PACK_TEX_DIR = os.path.join(ROOT, "public", "models", "packs", "blender", "textures")
 MANIFEST_PATH = os.path.join(ROOT, "src", "lib", "generated", "pack-manifest.json")
 EXPORT_SCRIPT = os.path.join(SCRIPTS, "export_pack_buildings.py")
-ASSET_URL_VERSION = 6
+ASSET_URL_VERSION = 7
 CONSTRUCT_CLIP = "construct"
 GLASS_TINT = (0.18, 0.28, 0.38, 1.0)
 
@@ -139,12 +139,30 @@ def classify_by_orientation(mat) -> str:
     return "cladding"
 
 
+def _used_by_crane_mesh(mat) -> bool:
+    import bpy
+
+    for obj in bpy.data.objects:
+        if obj.type != "MESH" or "crane" not in obj.name.lower():
+            continue
+        for slot in obj.material_slots:
+            if slot.material == mat:
+                return True
+    return False
+
+
 def surface_for_pack_material(mat) -> str:
     lowered = mat.name.lower()
     if "constryellow" in lowered:
         return "paint_yellow"
     if "constrblack" in lowered:
         return "paint_black"
+    if _used_by_crane_mesh(mat):
+        if "cab" in lowered or "steel" in lowered:
+            return "steel"
+        if "black" in lowered or "hook" in lowered or "track" in lowered or "cable" in lowered:
+            return "paint_black"
+        return "paint_yellow"
     if "steel" in lowered or "constrcab" in lowered:
         return "steel"
     if "glass" in lowered or "window" in lowered or "sky" in lowered:

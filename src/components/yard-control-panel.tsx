@@ -21,7 +21,7 @@ type YardControlPanelProps = {
   onToggleSandboxMode: () => void;
   onSelectObject: (id: string) => void;
   onResetYard: () => void;
-  onRemoveSelected: () => void;
+  onRemoveObject: (id: string) => void;
   placementHint: string | null;
   hoverCanPlace: boolean | null;
   cameraSettings: CameraSettings;
@@ -72,12 +72,43 @@ function ChevronIcon({ direction }: { direction: "up" | "down" | "left" }) {
       strokeWidth="1.75"
     >
       {direction === "up" ? (
-        <path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M4 10l4-4 4 4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       ) : direction === "down" ? (
-        <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M4 6l4 4 4-4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       ) : (
-        <path d="M10 3 5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M10 3 5 8l5 5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       )}
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="size-3.5 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M3.5 4.5h9M6 4.5V3.25h4V4.5M5 4.5l.4 8h5.2l.4-8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -97,6 +128,18 @@ function PanelIcon() {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+function ResetYardButton({ onResetYard }: { onResetYard: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onResetYard}
+      className="pointer-events-auto shrink-0 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-sm text-zinc-300 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
+    >
+      Reset yard
+    </button>
   );
 }
 
@@ -122,7 +165,7 @@ function AccordionSection({
         aria-expanded={isOpen}
         aria-controls={`${sectionId}-panel`}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-white/3"
       >
         <span className="text-xs font-medium text-zinc-200">{title}</span>
         <span className="flex items-center gap-2">
@@ -161,7 +204,7 @@ export function YardControlPanel({
   onToggleSandboxMode,
   onSelectObject,
   onResetYard,
-  onRemoveSelected,
+  onRemoveObject,
   placementHint,
   hoverCanPlace,
   cameraSettings,
@@ -190,33 +233,38 @@ export function YardControlPanel({
 
   if (!isPanelVisible) {
     return (
-      <button
-        type="button"
-        onClick={togglePanelVisible}
-        aria-expanded={false}
-        aria-controls={panelId}
-        aria-label="Show yard controls"
-        className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
-      >
-        <PanelIcon />
-        <span>Controls</span>
-        {objects.length > 0 ? (
-          <span
-            className="rounded-full bg-amber-200/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-100"
-            aria-label={`${objects.length} placed in yard`}
-          >
-            {objects.length}
-          </span>
-        ) : null}
-      </button>
+      <div className="flex items-start gap-2">
+        <ResetYardButton onResetYard={onResetYard} />
+        <button
+          type="button"
+          onClick={togglePanelVisible}
+          aria-expanded={false}
+          aria-controls={panelId}
+          aria-label="Show yard controls"
+          className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-zinc-200 shadow-lg backdrop-blur-md transition hover:border-white/20 hover:bg-black/80"
+        >
+          <PanelIcon />
+          <span>Controls</span>
+          {objects.length > 0 ? (
+            <span
+              className="rounded-full bg-amber-200/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-100"
+              aria-label={`${objects.length} placed in yard`}
+            >
+              {objects.length}
+            </span>
+          ) : null}
+        </button>
+      </div>
     );
   }
 
   return (
-    <div
-      id={panelId}
-      className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl"
-    >
+    <div className="flex items-start gap-2">
+      <ResetYardButton onResetYard={onResetYard} />
+      <div
+        id={panelId}
+        className="pointer-events-auto flex max-h-[calc(100dvh-2rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl"
+      >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200/70">
@@ -277,38 +325,80 @@ export function YardControlPanel({
               id={`${panelId}-tabpanel-assets`}
               aria-labelledby={`${panelId}-tab-assets`}
             >
-              <AccordionSection title="Placed in yard" badge={objects.length}>
+              <AccordionSection
+                title="Placed in yard"
+                badge={objects.length}
+              >
                 {objects.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Yard is empty.</p>
+                  <p className="text-sm text-zinc-500">
+                    Yard is empty. Place a model, then select it here or in the
+                    scene to delete it.
+                  </p>
                 ) : (
-                  <ul className="space-y-1 text-sm">
-                    {objects.map((object) => {
-                      const item = getCatalogItem(object.catalogId);
-                      const isSelected = object.id === selectedId;
-                      return (
-                        <li key={object.id}>
-                          <button
-                            type="button"
-                            onClick={() => onSelectObject(object.id)}
-                            className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left transition ${
-                              isSelected
-                                ? "bg-white/10 text-white"
-                                : "text-zinc-300 hover:bg-white/5"
+                  <div className="flex flex-col gap-2">
+                    <ul className="space-y-1 text-sm">
+                      {objects.map((object) => {
+                        const item = getCatalogItem(object.catalogId);
+                        const label = item?.label ?? object.catalogId;
+                        const isSelected = object.id === selectedId;
+                        return (
+                          <li
+                            key={object.id}
+                            className={`flex items-center gap-1 rounded ${
+                              isSelected ? "bg-white/10" : ""
                             }`}
                           >
-                            <span>{item?.label ?? object.catalogId}</span>
-                            <span className="font-mono text-[11px] text-zinc-500">
-                              {object.position[0]}, {object.position[2]}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                            <button
+                              type="button"
+                              onClick={() => onSelectObject(object.id)}
+                              aria-pressed={isSelected}
+                              className={`flex min-h-9 min-w-0 flex-1 items-center justify-between rounded px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 ${
+                                isSelected
+                                  ? "text-white"
+                                  : "text-zinc-300 hover:bg-white/5"
+                              }`}
+                            >
+                              <span className="truncate">{label}</span>
+                              <span className="ml-2 shrink-0 font-mono text-[11px] text-zinc-500">
+                                {object.position[0]}, {object.position[2]}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRemoveObject(object.id)}
+                              aria-label={`Delete ${label} from scene`}
+                              className="mr-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-rose-300/25 text-rose-200/90 transition hover:border-rose-300/50 hover:bg-rose-400/10 hover:text-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedId) {
+                          onRemoveObject(selectedId);
+                        }
+                      }}
+                      disabled={!selectedId}
+                      className="rounded-md border border-rose-300/30 px-3 py-2 text-sm text-rose-100 transition hover:bg-rose-400/10 disabled:border-white/10 disabled:text-zinc-500 disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                      Delete selected from scene
+                    </button>
+                    <p className="text-[11px] text-zinc-500">
+                      Click a model in the list or yard to select it. Delete key
+                      also removes the selection.
+                    </p>
+                  </div>
                 )}
               </AccordionSection>
 
-              <AccordionSection title="Yard actions" defaultOpen={false}>
+              <AccordionSection
+                title="Yard actions"
+                defaultOpen={false}
+              >
                 <div className="flex flex-col gap-2">
                   <Link
                     href="/library"
@@ -316,21 +406,6 @@ export function YardControlPanel({
                   >
                     Asset library grid
                   </Link>
-                  <button
-                    type="button"
-                    onClick={onResetYard}
-                    className="rounded-md border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5"
-                  >
-                    Reset yard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onRemoveSelected}
-                    disabled={!selectedId}
-                    className="rounded-md border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 disabled:opacity-40"
-                  >
-                    Remove selected
-                  </button>
                 </div>
               </AccordionSection>
             </div>
@@ -342,7 +417,10 @@ export function YardControlPanel({
               id={`${panelId}-tabpanel-view`}
               aria-labelledby={`${panelId}-tab-view`}
             >
-              <AccordionSection title="Camera" defaultOpen>
+              <AccordionSection
+                title="Camera"
+                defaultOpen
+              >
                 <CameraSettingsFields
                   settings={cameraSettings}
                   onChange={onCameraSettingsChange}
@@ -351,7 +429,10 @@ export function YardControlPanel({
                 />
               </AccordionSection>
 
-              <AccordionSection title="Animation" defaultOpen={false}>
+              <AccordionSection
+                title="Animation"
+                defaultOpen={false}
+              >
                 <AnimationSettingsFields
                   settings={animationSettings}
                   onChange={onAnimationSettingsChange}
@@ -367,7 +448,10 @@ export function YardControlPanel({
               id={`${panelId}-tabpanel-stream`}
               aria-labelledby={`${panelId}-tab-stream`}
             >
-              <AccordionSection title="OpenClaw connection" defaultOpen>
+              <AccordionSection
+                title="OpenClaw connection"
+                defaultOpen
+              >
                 <div className="space-y-3">
                   <AgentStreamConnectButton
                     isEnabled={streamEnabled}
@@ -383,12 +467,17 @@ export function YardControlPanel({
                         : "Connect to drive construction from agent work."}
                   </p>
                   {streamFetchError ? (
-                    <p className="text-xs text-rose-300/90">{streamFetchError}</p>
+                    <p className="text-xs text-rose-300/90">
+                      {streamFetchError}
+                    </p>
                   ) : null}
                 </div>
               </AccordionSection>
 
-              <AccordionSection title="Sandbox" defaultOpen={false}>
+              <AccordionSection
+                title="Sandbox"
+                defaultOpen={false}
+              >
                 <div className="space-y-3">
                   <button
                     type="button"
@@ -411,6 +500,7 @@ export function YardControlPanel({
             </div>
           ) : null}
         </div>
+      </div>
     </div>
   );
 }

@@ -14,8 +14,13 @@ export const LIBRARY_CELL_PADDING = 3;
 /** Fallback when a catalog item omits footprint metadata. */
 export const DEFAULT_LIBRARY_FOOTPRINT = { width: 10, depth: 10 } as const;
 
-export function getLibraryCatalogItems(): CatalogItem[] {
-  return CATALOG.filter((item) => item.inLibrary === true);
+export function getLibraryCatalogItems(
+  excludedIds: readonly string[] = [],
+): CatalogItem[] {
+  const excludedCatalogIds = new Set(excludedIds);
+  return CATALOG.filter(
+    (item) => item.inLibrary === true && !excludedCatalogIds.has(item.id),
+  );
 }
 
 function getFootprint(item: CatalogItem) {

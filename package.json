@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "cpt": "cpt",
-    "skills:add": "cpt manage-skills add"
+    "skills:add": "cpt manage-skills add",
+    "install": "pnpm install"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
