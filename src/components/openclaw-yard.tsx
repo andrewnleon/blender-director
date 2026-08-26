@@ -208,6 +208,7 @@ export function OpenClawYard() {
         constructionByCatalogId={constructionByCatalogId}
         onPlace={() => {}}
         onSelect={setSelectedId}
+        staticPreview={!constructionPreview.isPreviewActive && !isStreamDriving}
         cameraTarget={bounds.center}
         groundExtent={SHARED_STAGE_EXTENT}
         isConstructReplaying={isConstructReplaying}

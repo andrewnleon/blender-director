@@ -109,6 +109,52 @@ function buildLibraryRows(items: readonly CatalogItem[]): LibraryRow[] {
   return rows;
 }
 
+function placementHalfExtents(item: CatalogItem | undefined) {
+  const footprint = item ? getFootprint(item) : DEFAULT_LIBRARY_FOOTPRINT;
+  return { halfWidth: footprint.width / 2, halfDepth: footprint.depth / 2 };
+}
+
+/** True when two lots share plan-area (models would occupy the same ground). */
+export function placementsOverlapOnPlan(
+  left: PlacedObject,
+  right: PlacedObject,
+): boolean {
+  const leftExtent = placementHalfExtents(getCatalogItem(left.catalogId));
+  const rightExtent = placementHalfExtents(getCatalogItem(right.catalogId));
+  const dx = Math.abs(left.position[0] - right.position[0]);
+  const dz = Math.abs(left.position[2] - right.position[2]);
+  return (
+    dx < leftExtent.halfWidth + rightExtent.halfWidth - 1e-6 &&
+    dz < leftExtent.halfDepth + rightExtent.halfDepth - 1e-6
+  );
+}
+
+export function findOverlappingPlacementPairs(
+  placements: readonly PlacedObject[],
+): Array<[string, string]> {
+  const pairs: Array<[string, string]> = [];
+  for (let leftIndex = 0; leftIndex < placements.length; leftIndex += 1) {
+    const left = placements[leftIndex];
+    if (!left) {
+      continue;
+    }
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < placements.length;
+      rightIndex += 1
+    ) {
+      const right = placements[rightIndex];
+      if (!right) {
+        continue;
+      }
+      if (placementsOverlapOnPlan(left, right)) {
+        pairs.push([left.id, right.id]);
+      }
+    }
+  }
+  return pairs;
+}
+
 /** Auto-place library catalog items on a centered grid with footprint-aware spacing. */
 export function buildLibraryPlacements(
   items: readonly CatalogItem[] = getLibraryCatalogItems(),

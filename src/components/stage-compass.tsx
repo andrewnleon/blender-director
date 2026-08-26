@@ -121,7 +121,7 @@ export function StageCameraPoseReadout({ pose }: StageCameraPoseReadoutProps) {
         : "Copy camera pose text";
 
   return (
-    <div className="min-w-0 flex-1 text-right">
+    <div className="min-w-0 w-full text-right">
       <div className="flex items-start justify-end gap-1.5">
         <div className="min-w-0 space-y-0.5">
           <p className="font-mono text-[10px] leading-tight text-zinc-100 tabular-nums">
@@ -174,10 +174,10 @@ export function StageNavigationReadout({
 }: StageNavigationReadoutProps) {
   return (
     <div
-      className={`${yardChromeCardClass} flex w-full min-w-0 items-start gap-2 px-2 py-1.5`}
+      className={`${yardChromeCardClass} flex w-full min-w-0 flex-col items-end gap-1.5 px-2 py-1.5`}
     >
-      <StageCompass headingDegrees={headingDegrees} compact />
       <StageCameraPoseReadout pose={pose} />
+      <StageCompass headingDegrees={headingDegrees} compact />
     </div>
   );
 }

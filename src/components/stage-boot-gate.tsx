@@ -28,25 +28,17 @@ function GltfWarmup({ url }: { url: string }) {
   return null;
 }
 
-function TextureWarmup({ urls }: { urls: readonly string[] }) {
-  useTexture([...urls]);
-  return null;
-}
-
 type StageBootGateProps = {
   children: ReactNode;
 };
 
-/** Suspend until hero GLBs + first-paint textures sit in the drei cache. */
+/** Suspend until hero GLBs are in the drei cache. Textures warm via preload (no Canvas hook). */
 export function StageBootGate({ children }: StageBootGateProps) {
   return (
     <Suspense fallback={<StagePreloader />}>
       {FIRST_WAVE_GLB_URLS.map((url) => (
         <GltfWarmup key={url} url={url} />
       ))}
-      {STAGE_TEXTURE_PRELOAD_URLS.length > 0 ? (
-        <TextureWarmup urls={STAGE_TEXTURE_PRELOAD_URLS} />
-      ) : null}
       {children}
     </Suspense>
   );

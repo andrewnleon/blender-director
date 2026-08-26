@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildLibraryPlacements,
+  findOverlappingPlacementPairs,
+  getLibraryCatalogItems,
   getLibraryPreloadPriority,
   sortLibraryItemsHeroFirst,
 } from "@/lib/library-layout";
@@ -66,5 +69,11 @@ describe("library layout preload order", () => {
       "operations-center",
       "pack-residential-001",
     ]);
+  });
+
+  it("does not stack library lots on the same plan footprint", () => {
+    const placements = buildLibraryPlacements(getLibraryCatalogItems());
+    assert.ok(placements.length > 1);
+    assert.deepEqual(findOverlappingPlacementPairs(placements), []);
   });
 });

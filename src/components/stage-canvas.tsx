@@ -9,6 +9,7 @@ import {
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -119,6 +120,11 @@ import {
 } from "@/lib/construction/site-kit";
 import { canPlaceAt } from "@/lib/placement-collision";
 import { getBuildingDefinition } from "@/lib/construction/asset-registry";
+import { STAGE_FIRST_WAVE_COUNT } from "@/lib/stage-preload";
+import {
+  pickMountedCatalogIds,
+  STAGE_MAX_MOUNTED_LOTS,
+} from "@/lib/stage-visible-lots";
 
 type StageCanvasProps = {
   objects: PlacedObject[];
@@ -1460,17 +1466,50 @@ export function StageCanvas({
   sceneVariant = DEFAULT_SCENE_VARIANT,
   onCameraPoseChange,
   onConstructReplayFinished,
-  priorityPreloadCatalogIds = [],
 }: StageCanvasProps) {
   useCatalogGlbPreload(!readOnly ? placeCatalogId : null);
-  const placedCatalogIds = useMemo(
-    () => objects.map((object) => object.catalogId),
-    [objects],
+  const targetX = cameraTarget[0];
+  const targetY = cameraTarget[1];
+  const targetZ = cameraTarget[2];
+  const [orbitFocus, setOrbitFocus] = useState<[number, number, number]>(
+    () => cameraTarget,
+  );
+  useEffect(() => {
+    setOrbitFocus([targetX, targetY, targetZ]);
+  }, [targetX, targetY, targetZ]);
+  const selectedCatalogId = useMemo(() => {
+    if (!selectedId) {
+      return null;
+    }
+    return (
+      objects.find((object) => object.id === selectedId)?.catalogId ?? null
+    );
+  }, [objects, selectedId]);
+  const nearbyCatalogIds = useMemo(
+    () =>
+      pickMountedCatalogIds(
+        objects,
+        orbitFocus[0],
+        orbitFocus[2],
+        [
+          ...(selectedCatalogId ? [selectedCatalogId] : []),
+          ...(placeCatalogId ? [placeCatalogId] : []),
+        ],
+        STAGE_MAX_MOUNTED_LOTS,
+      ),
+    [objects, orbitFocus, placeCatalogId, selectedCatalogId],
   );
   const mountableCatalogIds = useProgressiveCatalogPreload({
-    priorityCatalogIds: priorityPreloadCatalogIds,
-    catalogIds: placedCatalogIds,
+    priorityCatalogIds: nearbyCatalogIds.slice(0, STAGE_FIRST_WAVE_COUNT),
+    catalogIds: nearbyCatalogIds,
   });
+  const handleCameraPoseChange = useCallback(
+    (pose: StageCameraPose) => {
+      setOrbitFocus(pose.target);
+      onCameraPoseChange?.(pose);
+    },
+    [onCameraPoseChange],
+  );
   const placingItem =
     !readOnly && placeCatalogId ? getCatalogItem(placeCatalogId) : null;
   const placing = placingItem !== null;
@@ -1587,12 +1626,10 @@ export function StageCanvas({
         cameraTarget={cameraTarget}
         viewDistance={cameraSettings.viewDistance}
       />
-      {onCameraPoseChange ? (
-        <CameraPoseReporter
-          cameraTarget={cameraTarget}
-          onCameraPoseChange={onCameraPoseChange}
-        />
-      ) : null}
+      <CameraPoseReporter
+        cameraTarget={cameraTarget}
+        onCameraPoseChange={handleCameraPoseChange}
+      />
     </Canvas>
   );
 }
