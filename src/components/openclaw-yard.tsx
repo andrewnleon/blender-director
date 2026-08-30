@@ -15,6 +15,7 @@ import {
   type StageCameraPose,
 } from "@/lib/camera-settings";
 import {
+  canPlaceCatalogItem,
   catalogHasConstructClip,
   getCatalogItem,
   type PlacedObject,
@@ -25,13 +26,20 @@ import { OPENCLAW_PREVIEW_STEP_COUNT } from "@/lib/construction/mock-openclaw-da
 import { useConstructionPreview } from "@/hooks/use-construction-preview";
 import { useYardChrome } from "@/hooks/use-yard-chrome";
 import {
-  buildLibraryPlacements,
   getLibraryBounds,
   getLibraryCatalogItems,
   getLibraryPreloadPriority,
   getLibraryViewDistance,
 } from "@/lib/library-layout";
 import { SHARED_STAGE_EXTENT } from "@/lib/stage-world";
+
+/** The yard starts empty — framing stays put instead of chasing each new lot. */
+const EMPTY_STAGE_BOUNDS = getLibraryBounds([]);
+
+/** Hero-first warm-up so the first palette placement mounts without a stall. */
+const PRIORITY_PRELOAD_CATALOG_IDS = getLibraryPreloadPriority(
+  getLibraryCatalogItems(),
+);
 
 function countPackConstructPlacements(
   placements: readonly PlacedObject[],
@@ -52,10 +60,12 @@ export function OpenClawYard() {
   const {
     placeCatalogId,
     setPlaceCatalogId,
+    userPlacements,
+    placeUserObject,
+    removeUserObject,
     isSandboxMode,
     toggleSandboxMode,
     excludedIds,
-    excludeCatalogId,
     saveError,
     isDynamicScene,
     toggleDynamicScene,
@@ -67,28 +77,18 @@ export function OpenClawYard() {
     handleResetYard,
   } = useYardChrome();
 
-  const libraryItems = useMemo(
-    () => getLibraryCatalogItems(excludedIds),
-    [excludedIds],
-  );
-  const placements = useMemo(
-    () => buildLibraryPlacements(libraryItems),
-    [libraryItems],
-  );
-  const bounds = useMemo(() => getLibraryBounds(placements), [placements]);
+  // Every lot on this stage is user-placed. Nothing is seeded from the catalog.
+  const placements = userPlacements;
   const packConstructCount = useMemo(
     () => countPackConstructPlacements(placements),
     [placements],
   );
-  const priorityPreloadCatalogIds = useMemo(
-    () => getLibraryPreloadPriority(libraryItems),
-    [libraryItems],
-  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoverCanPlace, setHoverCanPlace] = useState<boolean | null>(null);
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>(() => ({
     ...DEFAULT_CAMERA_SETTINGS,
-    viewDistance: getLibraryViewDistance(bounds),
+    viewDistance: getLibraryViewDistance(EMPTY_STAGE_BOUNDS),
   }));
   const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(
     DEFAULT_ANIMATION_SETTINGS,
@@ -130,13 +130,6 @@ export function OpenClawYard() {
     pendingPackReplayFinishesRef.current -= 1;
   }, []);
 
-  useEffect(() => {
-    setCameraSettings((currentSettings) => ({
-      ...currentSettings,
-      viewDistance: getLibraryViewDistance(bounds),
-    }));
-  }, [bounds]);
-
   const selectedPlacement = placements.find(
     (placement) => placement.id === selectedId,
   );
@@ -144,6 +137,12 @@ export function OpenClawYard() {
     ? getCatalogItem(selectedPlacement.catalogId)
     : undefined;
   const placeItem = placeCatalogId ? getCatalogItem(placeCatalogId) : undefined;
+  // Capped selections (hero `maxCount`) must not draw a placeable hover cell.
+  const activePlaceCatalogId =
+    placeCatalogId &&
+    canPlaceCatalogItem(placeCatalogId, placements, isSandboxMode)
+      ? placeCatalogId
+      : null;
 
   const placementHint = constructionPreview.isPreviewActive
     ? `OpenClaw preview · mock tasks · step ${constructionPreview.previewStep + 1}/${OPENCLAW_PREVIEW_STEP_COUNT}`
@@ -152,21 +151,29 @@ export function OpenClawYard() {
       : isStreamDriving
         ? "Live OpenClaw stream driving construction"
         : placeItem
-          ? `Selected ${placeItem.label} · use palette to hide from grid`
-          : `${libraryItems.length} assets · Preview simulates agent tasks · Connect stream for live traffic`;
+          ? `Selected ${placeItem.label} · click the grid to place`
+          : placements.length === 0
+            ? "Empty stage · pick a building from the palette, then click the grid"
+            : `${placements.length} placed · Preview simulates agent tasks · Connect stream for live traffic`;
+
+  const handlePlace = useCallback(
+    (position: [number, number, number]) => {
+      if (!placeCatalogId) {
+        return;
+      }
+      placeUserObject(placeCatalogId, position, placements);
+    },
+    [placeCatalogId, placeUserObject, placements],
+  );
 
   const handleRemovePlacement = useCallback(
     (placementId: string) => {
-      const placement = placements.find((entry) => entry.id === placementId);
-      if (!placement) {
-        return;
-      }
-      void excludeCatalogId(placement.catalogId);
+      removeUserObject(placementId);
       setSelectedId((currentId) =>
         currentId === placementId ? null : currentId,
       );
     },
-    [excludeCatalogId, placements],
+    [removeUserObject],
   );
 
   useEffect(() => {
@@ -202,34 +209,26 @@ export function OpenClawYard() {
       <StageCanvas
         objects={placements}
         selectedId={selectedId}
-        placeCatalogId={null}
+        placeCatalogId={activePlaceCatalogId}
         cameraSettings={cameraSettings}
         animationSettings={animationSettings}
         constructionByCatalogId={constructionByCatalogId}
-        onPlace={() => {}}
+        onPlace={handlePlace}
+        onPlacementHoverChange={setHoverCanPlace}
         onSelect={setSelectedId}
         staticPreview={!constructionPreview.isPreviewActive && !isStreamDriving}
-        cameraTarget={bounds.center}
+        cameraTarget={EMPTY_STAGE_BOUNDS.center}
         groundExtent={SHARED_STAGE_EXTENT}
         isConstructReplaying={isConstructReplaying}
         onConstructReplayFinished={handleConstructReplayFinished}
         isDynamicScene={isDynamicScene}
         sceneVariant={sceneVariant}
         onCameraPoseChange={setCameraPose}
-        priorityPreloadCatalogIds={priorityPreloadCatalogIds}
+        priorityPreloadCatalogIds={PRIORITY_PRELOAD_CATALOG_IDS}
       />
 
       <header className="pointer-events-none absolute top-0 left-0 p-4">
         <div className="flex flex-col items-start gap-2">
-          <div className="pointer-events-auto rounded-lg border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-md">
-            <h1 className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">
-              OpenClaw Stage
-            </h1>
-            <p className="mt-1 max-w-xs text-[11px] text-zinc-400">
-              Library grid at root. Preview runs mock agent tasks; live stream
-              replaces preview when connected.
-            </p>
-          </div>
           {selectedPlacement ? (
             <button
               type="button"
@@ -260,10 +259,12 @@ export function OpenClawYard() {
         onSelectObject={setSelectedId}
         onResetYard={handleResetYard}
         onRemoveObject={handleRemovePlacement}
-        resetYardTitle="Clear hidden assets and restore default palette selection"
-        isResetYardDisabled={excludedIds.length === 0}
+        resetYardTitle="Clear placed buildings and hidden assets"
+        isResetYardDisabled={
+          placements.length === 0 && excludedIds.length === 0
+        }
         placementHint={placementHint}
-        hoverCanPlace={null}
+        hoverCanPlace={hoverCanPlace}
         cameraSettings={cameraSettings}
         onCameraSettingsChange={setCameraSettings}
         animationSettings={animationSettings}

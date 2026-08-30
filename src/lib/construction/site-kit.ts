@@ -306,9 +306,22 @@ export function isSiteKitPieceRevealed(
   return floorIndex <= revealedFloor;
 }
 
+/** Kit graphs are static after cloning — the frame count never changes. */
+const maxFloorCache = new WeakMap<Object3D, number>();
+
+function cachedMaxSiteKitFloor(root: Object3D): number {
+  const cached = maxFloorCache.get(root);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const maxFloor = maxSiteKitFloor(root);
+  maxFloorCache.set(root, maxFloor);
+  return maxFloor;
+}
+
 /** Hide or pop kit pieces from construct 0–1. Rest/complete = all collapsed. */
 export function applySiteKitReveal(root: Object3D, progress: number): void {
-  const maxFloor = maxSiteKitFloor(root);
+  const maxFloor = cachedMaxSiteKitFloor(root);
   let hasVisible = false;
   root.traverse((child) => {
     if (!(child instanceof Mesh) || !isSiteKitObjectName(child.name)) {

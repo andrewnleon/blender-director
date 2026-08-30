@@ -8,6 +8,7 @@ import {
 } from "@react-three/drei";
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import {
+  memo,
   Suspense,
   useCallback,
   useEffect,
@@ -101,7 +102,9 @@ import {
 import type { ConstructClock, ConstructionState } from "@/lib/construction/types";
 import type { AgentStatus } from "@/types/openclaw";
 import {
+  applyHollowCompleteMeshVisibility,
   applyHollowCompleteVisibility,
+  collectHollowCompleteMeshes,
   isHollowCompleteState,
 } from "@/lib/construction/complete-visibility";
 import { shouldMountRoofPool } from "@/lib/construction/roof-pool";
@@ -163,6 +166,11 @@ const BIND_COLLAPSE = 0.0001;
 const GROW_IN_THRESHOLD = 0.15;
 const COMPLETE_HULL_NAME = /_complete$/i;
 const CAMERA_TARGET: [number, number, number] = [0, 0.75, 0];
+/** Pose report threshold — matches the 2-decimal readout in stage chrome. */
+const POSE_REPORT_EPSILON = 0.005;
+const POSE_REPORT_HEADING_EPSILON = 0.5;
+/** Look-at drift before far lots are re-ranked for mounting. */
+const ORBIT_FOCUS_STEP = 1;
 
 function disableMaterialFog(material: Material): void {
   if ("fog" in material) {
@@ -280,7 +288,7 @@ function CameraPoseReporter({
 }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls);
-  const lastKey = useRef("");
+  const lastPose = useRef<Float64Array | null>(null);
 
   useFrame(() => {
     const target = isOrbitControlsLike(controls)
@@ -299,19 +307,28 @@ function CameraPoseReporter({
         ? Math.acos(Math.min(1, Math.max(-1, offsetY / distance)))
         : 0;
     const headingDegrees = stageCompassDegrees(offsetX, offsetZ);
-    const poseKey = [
-      camera.position.x.toFixed(2),
-      camera.position.y.toFixed(2),
-      camera.position.z.toFixed(2),
-      target.x.toFixed(2),
-      target.y.toFixed(2),
-      target.z.toFixed(2),
-      headingDegrees.toFixed(0),
-    ].join("|");
-    if (poseKey === lastKey.current) {
+    const previous = lastPose.current;
+    if (
+      previous &&
+      Math.abs(previous[0] - camera.position.x) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[1] - camera.position.y) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[2] - camera.position.z) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[3] - target.x) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[4] - target.y) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[5] - target.z) < POSE_REPORT_EPSILON &&
+      Math.abs(previous[6] - headingDegrees) < POSE_REPORT_HEADING_EPSILON
+    ) {
       return;
     }
-    lastKey.current = poseKey;
+    const pose = previous ?? new Float64Array(7);
+    pose[0] = camera.position.x;
+    pose[1] = camera.position.y;
+    pose[2] = camera.position.z;
+    pose[3] = target.x;
+    pose[4] = target.y;
+    pose[5] = target.z;
+    pose[6] = headingDegrees;
+    lastPose.current = pose;
     onCameraPoseChange({
       position: [camera.position.x, camera.position.y, camera.position.z],
       target: [target.x, target.y, target.z],
@@ -320,6 +337,40 @@ function CameraPoseReporter({
       headingDegrees,
     });
   });
+
+  return null;
+}
+
+/**
+ * Chrome refuses a new context ("context loss and was blocked") once a page has
+ * churned through too many. Preventing the default on loss lets the browser
+ * restore this context instead of three.js requesting another one.
+ */
+function WebGLContextRecovery() {
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    function handleContextLost(event: Event) {
+      event.preventDefault();
+    }
+
+    function handleContextRestored() {
+      invalidate();
+    }
+
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener(
+        "webglcontextrestored",
+        handleContextRestored,
+      );
+    };
+  }, [gl, invalidate]);
 
   return null;
 }
@@ -374,6 +425,13 @@ const ORBIT_MOUSE_PLACE = {
   MIDDLE: MOUSE.DOLLY,
   RIGHT: MOUSE.ROTATE,
 } as const;
+/** Stable identity — a fresh object each render invites renderer re-init. */
+const STAGE_GL_CONFIG = {
+  antialias: true,
+  alpha: false,
+  toneMappingExposure: 0.72,
+};
+
 const PLACEMENT_HALF = GRID_STEP / 2;
 const PLACEMENT_BORDER = new Float32Array([
   -PLACEMENT_HALF,
@@ -882,6 +940,9 @@ function resolveConstructClips(
   if (named) {
     return [named];
   }
+  // Per-object Blender exports ship no single `construct` clip — they ship one
+  // `ST_*Action` per piece, staggered on a shared timeline. That whole set *is*
+  // the construct animation, so drive all of it off the leader clock.
   if (clipName === "construct" && clips.length > 0) {
     return clips;
   }
@@ -922,6 +983,7 @@ function syncConstructClock(
   actions: readonly AnimationAction[],
   isPlaying: boolean,
   scrubProgress?: number,
+  cachedLeader?: AnimationAction,
 ) {
   if (actions.length === 0) {
     writeConstructClock(clock, scrubProgress ?? 1, false);
@@ -931,7 +993,7 @@ function syncConstructClock(
     writeConstructClock(clock, scrubProgress, false);
     return;
   }
-  const leader = pickLeaderAction(actions);
+  const leader = cachedLeader ?? pickLeaderAction(actions);
   const duration = Math.max(leader?.getClip().duration ?? 0, 1e-6);
   writeConstructClock(clock, (leader?.time ?? 0) / duration, isPlaying);
 }
@@ -994,6 +1056,7 @@ function AnimatedGlb({
   );
   const wrapRef = useRef<Group>(null);
   const actionsRef = useRef<AnimationAction[]>([]);
+  const leaderActionRef = useRef<AnimationAction | undefined>(undefined);
   const deferredRef = useRef<DeferredGrow[]>([]);
   const leaderDurationRef = useRef(1);
   const root = useMemo(() => {
@@ -1002,6 +1065,10 @@ function AnimatedGlb({
     return clone;
   }, [scene]);
   const { mixer, clips } = useAnimations(animations, root);
+  const hollowCompleteMeshes = useMemo(
+    () => collectHollowCompleteMeshes(root),
+    [root],
+  );
 
   useEffect(() => {
     mixer.timeScale = playbackSpeed;
@@ -1079,6 +1146,10 @@ function AnimatedGlb({
       action.clampWhenFinished = true;
       action.timeScale = actionTimeScale;
       action.time = 0;
+      // Even a paused action must be played: the mixer only evaluates actions
+      // it has been handed, so scrubbing an unplayed action leaves the lot
+      // stuck at bind pose (every grow-in piece collapsed, pad only).
+      action.play();
       if (isEffectiveScrub) {
         action.paused = true;
       } else if (endedReplay) {
@@ -1086,7 +1157,6 @@ function AnimatedGlb({
         action.paused = true;
       } else {
         action.paused = false;
-        action.play();
       }
       return action;
     });
@@ -1123,6 +1193,8 @@ function AnimatedGlb({
     }
 
     actionsRef.current = actions;
+    const leader = pickLeaderAction(actions);
+    leaderActionRef.current = leader;
     if (wrap) {
       wrap.visible = true;
     }
@@ -1130,13 +1202,13 @@ function AnimatedGlb({
     if (isEffectiveScrub) {
       return () => {
         actionsRef.current = [];
+        leaderActionRef.current = undefined;
         for (const action of actions) {
           action.stop();
         }
       };
     }
 
-    const leader = pickLeaderAction(actions);
 
     const onFinished = (event: { action: AnimationAction }) => {
       if (!leader || event.action !== leader) {
@@ -1155,6 +1227,7 @@ function AnimatedGlb({
     mixer.addEventListener("finished", onFinished);
     return () => {
       actionsRef.current = [];
+      leaderActionRef.current = undefined;
       mixer.removeEventListener("finished", onFinished);
       for (const action of actions) {
         action.stop();
@@ -1234,7 +1307,7 @@ function AnimatedGlb({
     if (actions.length === 0) {
       return;
     }
-    const leader = pickLeaderAction(actions);
+    const leader = leaderActionRef.current ?? pickLeaderAction(actions);
     const leaderDuration = Math.max(leader?.getClip().duration ?? 0, 1e-6);
     const leaderTime = leader?.time ?? 0;
     if (leaderTime >= leaderDuration - 1e-4) {
@@ -1246,9 +1319,10 @@ function AnimatedGlb({
       actions,
       !isEffectiveScrub && !constructDone,
       isEffectiveScrub ? constructionProgressRef.current : undefined,
+      leader,
     );
-    applyHollowCompleteVisibility(
-      root,
+    applyHollowCompleteMeshVisibility(
+      hollowCompleteMeshes,
       isHollowCompleteState({ constructDone, isConstructReplaying }),
     );
   });
@@ -1447,7 +1521,7 @@ function PlacedAsset({
   );
 }
 
-export function StageCanvas({
+function StageCanvasView({
   objects,
   selectedId,
   placeCatalogId,
@@ -1505,7 +1579,13 @@ export function StageCanvas({
   });
   const handleCameraPoseChange = useCallback(
     (pose: StageCameraPose) => {
-      setOrbitFocus(pose.target);
+      setOrbitFocus((currentFocus) =>
+        Math.abs(currentFocus[0] - pose.target[0]) < ORBIT_FOCUS_STEP &&
+        Math.abs(currentFocus[1] - pose.target[1]) < ORBIT_FOCUS_STEP &&
+        Math.abs(currentFocus[2] - pose.target[2]) < ORBIT_FOCUS_STEP
+          ? currentFocus
+          : pose.target,
+      );
       onCameraPoseChange?.(pose);
     },
     [onCameraPoseChange],
@@ -1525,21 +1605,21 @@ export function StageCanvas({
       northFacingCameraPosition(cameraTarget, cameraSettings.viewDistance),
     [cameraSettings.viewDistance, cameraTarget],
   );
+  const cameraConfig = useMemo(
+    () => ({
+      position: startCameraPosition,
+      fov: 40,
+      near: 0.1,
+      far: STAGE_CAMERA_FAR,
+    }),
+    [startCameraPosition],
+  );
   return (
     <Canvas
       className={`absolute inset-0 ${placing ? "cursor-crosshair" : ""}`}
       shadows="percentage"
-      camera={{
-        position: startCameraPosition,
-        fov: 40,
-        near: 0.1,
-        far: STAGE_CAMERA_FAR,
-      }}
-      gl={{
-        antialias: true,
-        alpha: false,
-        toneMappingExposure: 0.72,
-      }}
+      camera={cameraConfig}
+      gl={STAGE_GL_CONFIG}
       onCreated={({ gl }) => {
         gl.outputColorSpace = SRGBColorSpace;
         gl.toneMapping = ACESFilmicToneMapping;
@@ -1630,6 +1710,10 @@ export function StageCanvas({
         cameraTarget={cameraTarget}
         onCameraPoseChange={handleCameraPoseChange}
       />
+      <WebGLContextRecovery />
     </Canvas>
   );
 }
+
+/** Camera pose reports re-render the yard shell every frame — keep the scene out of it. */
+export const StageCanvas = memo(StageCanvasView);

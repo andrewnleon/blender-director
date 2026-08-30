@@ -27,15 +27,20 @@ export type ConstructDriveMode = "auto" | "scrub";
  * Library uses `staticPreview` + `libraryConstructPlayback()` in stage-canvas;
  * yard uses this helper only (never library layout / replay rules).
  *
- * Yard always scrubs: bind pose at progress 0 on page load / idle map;
- * live stream or preview mock maps advance progress without auto-playing clips.
- * Catalog id / state kept for call-site stability (progress read elsewhere).
+ * A live map scrubs: stream / preview progress drives the clip time directly.
+ * With no live state the lot auto-plays instead, otherwise it would sit at
+ * progress 0 forever — every grow-in piece rests at 0.04 scale, so a scrubbed
+ * idle lot shows the pad alone.
+ * Catalog id kept for call-site stability (progress read elsewhere).
  */
 export function constructDriveModeForCatalog(
   _catalogId: string,
-  _constructionState: ConstructionState | undefined,
+  constructionState: ConstructionState | undefined,
 ): ConstructDriveMode {
-  return "scrub";
+  if (constructionState?.isLive) {
+    return "scrub";
+  }
+  return "auto";
 }
 
 export function constructionStateForCatalog(

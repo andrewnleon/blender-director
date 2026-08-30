@@ -2,7 +2,7 @@ import { getCatalogItem, type PlacedObject } from "@/lib/catalog";
 
 export const YARD_OBJECTS_SESSION_KEY = "openclaw-yard.objects";
 export const PLACE_CATALOG_SESSION_KEY = "openclaw-yard.place-catalog-id";
-export const DEFAULT_PLACE_CATALOG_ID = "operations-center";
+export const DEFAULT_PLACE_CATALOG_ID = "skyscraper";
 
 /** Yard session keys — palette + exclusions. Grid layout uses `library-layout.ts`. */
 
@@ -60,6 +60,17 @@ export function readYardObjectsFromSession(): PlacedObject[] {
     return parseYardObjects(JSON.parse(stored));
   } catch {
     return [];
+  }
+}
+
+/** Persist user-placed yard lots. The auto-placed grid comes from `library-layout.ts`. */
+export function writeYardObjectsToSession(
+  objects: readonly PlacedObject[],
+): void {
+  try {
+    sessionStorage.setItem(YARD_OBJECTS_SESSION_KEY, JSON.stringify(objects));
+  } catch {
+    // sessionStorage may be unavailable in private browsing
   }
 }
 

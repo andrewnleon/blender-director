@@ -76,4 +76,15 @@ describe("library layout preload order", () => {
     assert.ok(placements.length > 1);
     assert.deepEqual(findOverlappingPlacementPairs(placements), []);
   });
+
+  it("lays out an auto grid for the library view, never for the yard", () => {
+    // The yard seeds from user placements only — see stage-placements.test.ts.
+    const items = getLibraryCatalogItems();
+    assert.ok(items.length > 0);
+    assert.ok(
+      items.every((item) => item.inLibrary === true),
+      "library grid should only contain items flagged inLibrary",
+    );
+    assert.deepEqual(buildLibraryPlacements([]), []);
+  });
 });

@@ -35,10 +35,9 @@ export function shouldHideAtHollowComplete(name: string): boolean {
   return false;
 }
 
-export function applyHollowCompleteVisibility(
-  root: Object3D,
-  isHollowComplete: boolean,
-): void {
+/** Meshes `applyHollowCompleteVisibility` touches — cache per root for per-frame use. */
+export function collectHollowCompleteMeshes(root: Object3D): Mesh[] {
+  const meshes: Mesh[] = [];
   root.traverse((child) => {
     if (!(child instanceof Mesh)) {
       return;
@@ -46,10 +45,30 @@ export function applyHollowCompleteVisibility(
     if (!shouldHideAtHollowComplete(child.name)) {
       return;
     }
-    child.visible = !isHollowComplete;
-    child.castShadow = !isHollowComplete;
-    child.receiveShadow = !isHollowComplete;
+    meshes.push(child);
   });
+  return meshes;
+}
+
+export function applyHollowCompleteMeshVisibility(
+  meshes: readonly Mesh[],
+  isHollowComplete: boolean,
+): void {
+  for (const mesh of meshes) {
+    mesh.visible = !isHollowComplete;
+    mesh.castShadow = !isHollowComplete;
+    mesh.receiveShadow = !isHollowComplete;
+  }
+}
+
+export function applyHollowCompleteVisibility(
+  root: Object3D,
+  isHollowComplete: boolean,
+): void {
+  applyHollowCompleteMeshVisibility(
+    collectHollowCompleteMeshes(root),
+    isHollowComplete,
+  );
 }
 
 export function isHollowCompleteState(input: {

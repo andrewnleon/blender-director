@@ -10,12 +10,15 @@ import {
   MOCK_OPENCLAW_AGENTS,
   mockOpenClawTasksForPreviewStep,
 } from "@/lib/construction/mock-openclaw-data";
+import type { ConstructionState } from "@/lib/construction/types";
 
 describe("construct drive defaults", () => {
-  it("scrubs all yard lots at bind pose when idle (no auto-play on load)", () => {
+  it("auto-plays every yard lot while no live map drives it", () => {
+    // Scrubbing an idle lot pins it at progress 0, where every grow-in piece
+    // rests at 0.04 scale and only the pad renders.
     assert.equal(
       constructDriveModeForCatalog("operations-center", undefined),
-      "scrub",
+      "auto",
     );
     assert.equal(
       constructDriveModeForCatalog("operations-center", {
@@ -23,11 +26,11 @@ describe("construct drive defaults", () => {
         progress: 0,
         isLive: false,
       }),
-      "scrub",
+      "auto",
     );
     assert.equal(
       constructDriveModeForCatalog("pack-residential-001", undefined),
-      "scrub",
+      "auto",
     );
     assert.equal(
       constructDriveModeForCatalog("pack-residential-001", {
@@ -35,11 +38,11 @@ describe("construct drive defaults", () => {
         progress: 0,
         isLive: false,
       }),
-      "scrub",
+      "auto",
     );
     assert.equal(
       constructDriveModeForCatalog("skyscraper", undefined),
-      "scrub",
+      "auto",
     );
   });
 
@@ -54,28 +57,26 @@ describe("construct drive defaults", () => {
     );
   });
 
-  it("holds scrub when stream pauses with any staged progress", () => {
+  it("hands a paused stream back to auto-play at any staged progress", () => {
+    const pausedStates: ConstructionState[] = [
+      { stage: 0, progress: 0, isLive: false },
+      { stage: 1, progress: 0.33, isLive: false },
+      { stage: 3, progress: 1, isLive: false },
+    ];
+    for (const state of pausedStates) {
+      assert.equal(
+        constructDriveModeForCatalog("operations-center", state),
+        "auto",
+      );
+    }
+  });
+
+  it("only a live map takes over the clip time", () => {
     assert.equal(
-      constructDriveModeForCatalog("operations-center", {
-        stage: 0,
-        progress: 0,
-        isLive: false,
-      }),
-      "scrub",
-    );
-    assert.equal(
-      constructDriveModeForCatalog("operations-center", {
+      constructDriveModeForCatalog("skyscraper", {
         stage: 1,
-        progress: 0.33,
-        isLive: false,
-      }),
-      "scrub",
-    );
-    assert.equal(
-      constructDriveModeForCatalog("operations-center", {
-        stage: 3,
-        progress: 1,
-        isLive: false,
+        progress: 0.2,
+        isLive: true,
       }),
       "scrub",
     );

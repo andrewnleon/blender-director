@@ -7,11 +7,17 @@ import { useAgentYard } from "@/hooks/use-agent-yard";
 import { useDynamicScene } from "@/hooks/use-dynamic-scene";
 import { useLibraryExclusions } from "@/hooks/use-library-exclusions";
 import {
-  clearLegacyYardObjectsFromSession,
   DEFAULT_PLACE_CATALOG_ID,
   readPlaceCatalogIdFromSession,
+  readYardObjectsFromSession,
   writePlaceCatalogIdToSession,
+  writeYardObjectsToSession,
 } from "@/lib/yard-session";
+import {
+  appendUserPlacement,
+  removeUserPlacement,
+} from "@/lib/stage-placements";
+import type { PlacedObject } from "@/lib/catalog";
 
 const SANDBOX_MODE_SESSION_KEY = "openclaw-yard.sandbox-mode";
 
@@ -39,6 +45,9 @@ export function useYardChrome() {
     readPlaceCatalogIdFromSession(),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [userPlacements, setUserPlacements] = useState<PlacedObject[]>(() =>
+    readYardObjectsFromSession(),
+  );
   const [isSandboxMode, setIsSandboxMode] = useState(() =>
     readSandboxModeFromSession(),
   );
@@ -57,7 +66,33 @@ export function useYardChrome() {
   });
 
   useEffect(() => {
-    clearLegacyYardObjectsFromSession();
+    writeYardObjectsToSession(userPlacements);
+  }, [userPlacements]);
+
+  const placeUserObject = useCallback(
+    (
+      catalogId: string,
+      position: [number, number, number],
+      stagePlacements: readonly PlacedObject[],
+    ) => {
+      setUserPlacements((currentPlacements) => {
+        const nextPlacements = appendUserPlacement({
+          catalogId,
+          position,
+          userPlacements: currentPlacements,
+          stagePlacements,
+          isSandboxMode,
+        });
+        return nextPlacements ?? currentPlacements;
+      });
+    },
+    [isSandboxMode],
+  );
+
+  const removeUserObject = useCallback((placementId: string) => {
+    setUserPlacements((currentPlacements) =>
+      removeUserPlacement(currentPlacements, placementId),
+    );
   }, []);
 
   const toggleSandboxMode = useCallback(() => {
@@ -81,6 +116,7 @@ export function useYardChrome() {
   const handleResetYard = useCallback(() => {
     setSelectedId(null);
     setPlaceCatalogId(DEFAULT_PLACE_CATALOG_ID);
+    setUserPlacements([]);
     resetExclusions();
   }, [resetExclusions]);
 
@@ -89,6 +125,9 @@ export function useYardChrome() {
     setPlaceCatalogId,
     selectedId,
     setSelectedId,
+    userPlacements,
+    placeUserObject,
+    removeUserObject,
     isSandboxMode,
     toggleSandboxMode,
     excludedIds,
